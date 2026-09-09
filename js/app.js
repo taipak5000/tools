@@ -47,6 +47,10 @@
     adjust: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16"/><path d="M12 4l4 4-4 4"/><path d="M12 20l-4-4 4-4"/></svg>',
     handle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 9h14M5 15h14"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+    pieTab: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9h-9z"/><path d="M14 2.5A9 9 0 0 1 21.5 10H14z"/></svg>',
+    prev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+    next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>',
   };
 
@@ -58,26 +62,36 @@
   const store = {
     wallets: [],
     tx: [],
+    categories: [],
     settings: {},
   };
+  const DEFAULT_CATEGORIES = ['食費', 'おやつ・ジュース', 'ゲーム', '本・マンガ', '交通費', '服・小物', 'お小遣い', 'プレゼント', 'その他'];
+  const seedCategories = () => DEFAULT_CATEGORIES.map((name, i) => ({ id: uid(), name, color: PALETTE[(i * 3) % PALETTE.length] }));
 
   function load() {
     let raw = null;
     try { raw = localStorage.getItem(KEY); } catch (e) { raw = memoryFallback; }
-    if (!raw) return;
+    if (!raw) { store.categories = seedCategories(); return; }
     try {
       const data = JSON.parse(raw);
       store.wallets = Array.isArray(data.wallets) ? data.wallets : [];
       store.tx = Array.isArray(data.tx) ? data.tx : [];
+      store.categories = Array.isArray(data.categories) ? data.categories : seedCategories();
       store.settings = data.settings || {};
     } catch (e) { /* 壊れたデータは無視する */ }
   }
   function save() {
-    const raw = JSON.stringify({ version: 1, wallets: store.wallets, tx: store.tx, settings: store.settings, savedAt: new Date().toISOString() });
+    const raw = JSON.stringify({ version: 2, wallets: store.wallets, tx: store.tx, categories: store.categories, settings: store.settings, savedAt: new Date().toISOString() });
     try { localStorage.setItem(KEY, raw); } catch (e) { memoryFallback = raw; }
   }
 
   const walletById = (id) => store.wallets.find((w) => w.id === id);
+  const categoryById = (id) => store.categories.find((c) => c.id === id);
+  function removeCategory(id) {
+    store.categories = store.categories.filter((c) => c.id !== id);
+    for (const t of store.tx) if (t.categoryId === id) delete t.categoryId;
+    save();
+  }
   const txOf = (walletId) => store.tx.filter((t) => t.walletId === walletId);
   const balance = (walletId, until) => store.tx.reduce((s, t) => (t.walletId === walletId && (!until || new Date(t.at) <= until) ? s + t.amount : s), 0);
   const totalBalance = (until) => store.wallets.reduce((s, w) => (w.inTotal ? s + balance(w.id, until) : s), 0);
@@ -296,6 +310,7 @@
       ['home', '#/', I.walletTab, '財布'],
       ['transfer', '#/transfer', I.transferTab, '振替'],
       ['chart', '#/chart', I.chartTab, 'グラフ'],
+      ['summary', '#/summary', I.pieTab, '集計'],
       ['settings', '#/settings', I.settingsTab, '設定'],
     ];
     $('#bottombar').innerHTML = `<div class="tabbar">${tabs.map(([k, h, ic, l]) => `<a class="tab ${k === active ? 'active' : ''}" href="${h}" data-tab="${k}">${ic}<span>${l}</span></a>`).join('')}</div>`;
@@ -317,7 +332,7 @@
   const SCREENS = {};
 
   SCREENS.home = () => {
-    setNav({ title: 'お小遣い帳', right: store.wallets.length ? '<a class="nav-btn" href="#/edit">編集</a>' : '' });
+    setNav({ left: store.tx.length ? `<button class="nav-btn" data-act="search" aria-label="検索">${I.search}</button>` : '', title: 'お小遣い帳', right: store.wallets.length ? '<a class="nav-btn" href="#/edit">編集</a>' : '' });
     tabbar('home');
     const now = new Date();
     const inIds = store.wallets.filter((w) => w.inTotal).map((w) => w.id);
@@ -342,6 +357,7 @@
       <div class="group-foot">「合計外」の財布は合計残高に含まれません。財布ごとの設定で切り替えられます。</div>
     `;
     $('#screen').onclick = (e) => { if (e.target.closest('[data-act="add-wallet"]')) walletForm(); };
+    $('#nav').onclick = (e) => { if (e.target.closest('[data-act="search"]')) { resetSearch(); go('#/search'); } };
   };
 
   /* ---------- 画面: 財布詳細 ---------- */
@@ -396,14 +412,17 @@
     $('#nav').onclick = handler;
   };
 
-  function txRow(t) {
+  function txRow(t, { showWallet = false } = {}) {
     const other = t.transferId ? store.tx.find((x) => x.transferId === t.transferId && x.id !== t.id) : null;
     const otherW = other && walletById(other.walletId);
-    let title = t.memo || { in: '入金', out: '出金', transfer: '振替', adjust: '残高の調整' }[t.kind];
+    const cat = t.categoryId && categoryById(t.categoryId);
+    let title = t.memo || (cat ? cat.name : { in: '入金', out: '出金', transfer: '振替', adjust: '残高の調整' }[t.kind]);
     let sub = fmtTime(t.at);
+    if (showWallet) { const w = walletById(t.walletId); if (w) sub += `　${esc(w.name)}`; }
     if (t.kind === 'transfer' && otherW) sub += `　${t.amount < 0 ? `→ ${esc(otherW.name)}` : `← ${esc(otherW.name)}`}`;
     else if (t.kind === 'transfer') sub += '　振替';
     else if (t.kind === 'adjust' && t.memo) sub += '　残高の調整';
+    else if (cat && t.memo) sub += `　<span class="cat-dot" style="--c:${esc(cat.color)}"></span>${esc(cat.name)}`;
     const icon = t.kind === 'transfer' ? I.arrowRL : t.kind === 'adjust' ? I.adjust : t.amount >= 0 ? I.plus : I.minus;
     const cls = t.kind === 'transfer' ? 'transfer' : t.kind === 'adjust' ? 'adjust' : t.amount >= 0 ? 'in' : 'out';
     return `<button class="row tx-row has-icon" data-act="tx" data-id="${t.id}">
@@ -485,6 +504,7 @@
         <div class="amount-field ${curKind}" id="f-amount-wrap"><input id="f-amount" type="number" inputmode="numeric" placeholder="0" value="${editing ? Math.abs(tx.amount) : ''}" enterkeyhint="done"><div class="hint">${curKind === 'transfer' ? '振替の金額（相手側にも反映されます）' : curKind === 'adjust' ? '調整額' : '円'}</div></div>
       </div>
       <div class="group">
+        ${curKind === 'transfer' || curKind === 'adjust' ? '' : `<div class="field"><label for="f-cat">カテゴリ</label><select id="f-cat"><option value="">なし</option>${store.categories.map((c) => `<option value="${c.id}" ${editing && tx.categoryId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>`}
         <div class="field"><label for="f-memo">メモ</label><input id="f-memo" type="text" placeholder="任意" value="${esc(editing ? tx.memo : '')}" autocomplete="off" enterkeyhint="done"></div>
         <div class="field"><label for="f-at">日時</label><input id="f-at" type="datetime-local" value="${toLocalInput(editing ? tx.at : new Date())}"></div>
       </div>
@@ -509,6 +529,8 @@
           const amt = Math.round(Math.abs(Number($('#f-amount', body).value)));
           if (!amt) { $('#f-amount', body).focus(); toast('金額を入力してください'); return; }
           const memo = $('#f-memo', body).value.trim();
+          const catSel = $('#f-cat', body);
+          const categoryId = catSel && catSel.value ? catSel.value : undefined;
           const atVal = $('#f-at', body).value;
           const at = atVal ? new Date(atVal).toISOString() : new Date().toISOString();
           if (editing) {
@@ -518,10 +540,13 @@
               tx.amount = Math.sign(tx.amount) * amt; tx.memo = memo; tx.at = at;
             } else {
               tx.amount = curKind === 'in' ? amt : -amt; tx.kind = curKind; tx.memo = memo; tx.at = at;
+              if (categoryId) tx.categoryId = categoryId; else delete tx.categoryId;
             }
             save(); closeSheet(); toast('保存しました'); render();
           } else {
-            store.tx.push({ id: uid(), walletId, amount: curKind === 'in' ? amt : -amt, kind: curKind, memo, at });
+            const rec = { id: uid(), walletId, amount: curKind === 'in' ? amt : -amt, kind: curKind, memo, at };
+            if (categoryId) rec.categoryId = categoryId;
+            store.tx.push(rec);
             save(); closeSheet(); toast(curKind === 'in' ? `¥${yen(amt)} 入金しました` : `¥${yen(amt)} 出金しました`); render();
           }
         });
@@ -877,6 +902,7 @@
       <div class="group-title">財布</div>
       <div class="group">
         <a class="row pressable" href="#/edit"><div class="row-main"><div class="row-title">財布の編集・並び替え</div></div>${I.chevron.replace('<svg', '<svg class="row-chevron"')}</a>
+        <a class="row pressable" href="#/categories"><div class="row-main"><div class="row-title">カテゴリの編集</div><div class="row-sub">${store.categories.length} 件</div></div>${I.chevron.replace('<svg', '<svg class="row-chevron"')}</a>
       </div>
       <div class="group-title">バックアップ</div>
       <div class="group">
@@ -897,7 +923,7 @@
       if (!b) return;
       const act = b.dataset.act;
       if (act === 'export') {
-        const blob = new Blob([JSON.stringify({ version: 1, wallets: store.wallets, tx: store.tx, settings: store.settings, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify({ version: 2, wallets: store.wallets, tx: store.tx, categories: store.categories, settings: store.settings, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         const d = new Date();
         a.href = URL.createObjectURL(blob);
@@ -909,7 +935,7 @@
       } else if (act === 'reset') {
         if (!confirm('すべての財布と記録を削除します。よろしいですか？')) return;
         if (!confirm('本当に削除しますか？元に戻せません。')) return;
-        store.wallets = []; store.tx = []; store.settings = {};
+        store.wallets = []; store.tx = []; store.settings = {}; store.categories = seedCategories();
         save(); toast('削除しました'); render();
       }
     };
@@ -921,11 +947,230 @@
         if (!Array.isArray(data.wallets) || !Array.isArray(data.tx)) throw new Error('形式が違います');
         if (!confirm(`財布 ${data.wallets.length} 件・記録 ${data.tx.length} 件を読み込み、今のデータと置き換えます。よろしいですか？`)) return;
         store.wallets = data.wallets; store.tx = data.tx; store.settings = data.settings || {};
+        store.categories = Array.isArray(data.categories) ? data.categories : seedCategories();
         save(); toast('読み込みました'); render();
       } catch (err) {
         toast('読み込めませんでした: ' + err.message);
       }
       e.target.value = '';
+    };
+  };
+
+  /* ---------- 画面: カテゴリの編集 ---------- */
+  SCREENS.categories = () => {
+    setNav({ left: backBtn('戻る', '#/settings'), title: 'カテゴリの編集', right: `<button class="nav-btn bold" data-back="#/settings">完了</button>` });
+    $('#bottombar').innerHTML = '';
+    const count = (id) => store.tx.filter((t) => t.categoryId === id).length;
+    const rows = store.categories.map((c) => `
+      <div class="edit-row" data-id="${c.id}">
+        <button class="del" data-act="delete" aria-label="削除">${I.minus}</button>
+        <button class="info" data-act="edit"><span class="cat-dot lg" style="--c:${esc(c.color)}"></span><div class="row-main"><div class="row-title">${esc(c.name)}</div><div class="row-sub">${count(c.id)} 件の記録</div></div></button>
+        <span class="handle" aria-label="並び替え">${I.handle}</span>
+      </div>`).join('');
+    $('#screen').innerHTML = `
+      ${rows ? `<div class="group" id="cat-list">${rows}</div>` : `<div class="group"><div class="empty"><strong>カテゴリがありません</strong>「食費」「ゲーム」など、お金の使いみちごとに作ります。</div></div>`}
+      <div class="group"><button class="row tint" data-act="add">${I.plus.replace('<svg', '<svg style="width:20px;height:20px"')}<span>カテゴリを追加</span></button></div>
+      <div class="group-foot">カテゴリを削除しても記録は消えません。その記録は「未分類」になります。</div>
+    `;
+    const s = $('#screen');
+    s.onclick = (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      const row = b.closest('.edit-row');
+      const c = row && categoryById(row.dataset.id);
+      if (b.dataset.act === 'add') categoryForm();
+      else if (b.dataset.act === 'edit') categoryForm(c);
+      else if (b.dataset.act === 'delete') {
+        const n = count(c.id);
+        if (!confirm(`「${c.name}」を削除しますか？${n ? `\n${n}件の記録は未分類になります。` : ''}`)) return;
+        removeCategory(c.id); toast('削除しました'); render();
+      }
+    };
+    const list = $('#cat-list', s);
+    if (list) enableReorder(list, (ids) => { store.categories.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id)); save(); });
+  };
+
+  function categoryForm(c) {
+    const isNew = !c;
+    const color = c ? c.color : PALETTE[(store.categories.length * 2) % PALETTE.length];
+    openSheet(`
+      <div class="sheet-head"><div class="sheet-title">${isNew ? 'カテゴリを追加' : 'カテゴリを編集'}</div><button class="nav-btn bold" data-act="save">${isNew ? '追加' : '保存'}</button></div>
+      <div class="group">
+        <div class="field"><label for="c-name">名前</label><input id="c-name" type="text" placeholder="食費、ゲーム など" value="${esc(c ? c.name : '')}" autocomplete="off" enterkeyhint="done"></div>
+      </div>
+      <div class="group-title">色</div>
+      <div class="group">
+        <div class="swatches">
+          ${PALETTE.map((p) => `<button class="swatch ${p === color ? 'selected' : ''}" style="--c:${p}" data-color="${p}" aria-label="${p}"></button>`).join('')}
+          <div class="swatch custom" title="好きな色"><input type="color" id="c-custom" value="${esc(color)}"></div>
+        </div>
+      </div>
+    `, {
+      onOpen(body) {
+        let picked = color;
+        const mark = () => $$('.swatch', body).forEach((sw) => sw.classList.toggle('selected', sw.dataset.color === picked));
+        body.addEventListener('click', (e) => {
+          const sw = e.target.closest('.swatch[data-color]');
+          if (sw) { picked = sw.dataset.color; mark(); return; }
+          if (!e.target.closest('[data-act="save"]')) return;
+          const name = $('#c-name', body).value.trim();
+          if (!name) { $('#c-name', body).focus(); toast('名前を入力してください'); return; }
+          if (isNew) store.categories.push({ id: uid(), name, color: picked });
+          else Object.assign(c, { name, color: picked });
+          save(); closeSheet(); render();
+        });
+        $('#c-custom', body).addEventListener('input', (e) => { picked = e.target.value; mark(); $('.swatch.custom', body).style.setProperty('--c', picked); $('.swatch.custom', body).classList.add('selected'); });
+        if (isNew) setTimeout(() => $('#c-name', body).focus(), 250);
+      },
+    });
+  }
+
+  /* ---------- 画面: カテゴリ別の月間集計 ---------- */
+  const summaryState = { y: new Date().getFullYear(), m: new Date().getMonth(), kind: 'out' };
+
+  SCREENS.summary = () => {
+    setNav({ title: '集計' });
+    tabbar('summary');
+    const st = summaryState;
+    const now = new Date();
+    const isCurrent = st.y === now.getFullYear() && st.m === now.getMonth();
+    const from = new Date(st.y, st.m, 1), to = monthEnd(st.y, st.m);
+    const rows = store.tx.filter((t) => {
+      if (t.kind === 'transfer' || t.kind === 'adjust') return false;
+      if (st.kind === 'out' ? t.amount >= 0 : t.amount < 0) return false;
+      const d = new Date(t.at);
+      return d >= from && d <= to;
+    });
+    const total = rows.reduce((a, t) => a + Math.abs(t.amount), 0);
+    const byCat = new Map();
+    for (const t of rows) {
+      const k = t.categoryId && categoryById(t.categoryId) ? t.categoryId : '';
+      const e = byCat.get(k) || { amount: 0, count: 0 };
+      e.amount += Math.abs(t.amount); e.count++;
+      byCat.set(k, e);
+    }
+    const items = Array.from(byCat, ([id, v]) => ({ id, cat: id ? categoryById(id) : null, ...v })).sort((a, b) => b.amount - a.amount);
+    const colorOf = (it) => (it.cat ? it.cat.color : '#8e8e93');
+    const nameOf = (it) => (it.cat ? it.cat.name : '未分類');
+
+    $('#screen').innerHTML = `
+      <h1 class="large-title">集計</h1>
+      <div class="month-nav">
+        <button data-act="prev" aria-label="前の月">${I.prev}</button>
+        <button class="month-label" data-act="today">${st.y}年${st.m + 1}月</button>
+        <button data-act="next" aria-label="次の月" ${isCurrent ? 'disabled' : ''}>${I.next}</button>
+      </div>
+      <div class="segmented"><button data-kind="out" class="${st.kind === 'out' ? 'active' : ''}">出金</button><button data-kind="in" class="${st.kind === 'in' ? 'active' : ''}">入金</button></div>
+      <div class="hero">
+        <div class="hero-label">${st.m + 1}月の${st.kind === 'out' ? '出金' : '入金'}合計　${rows.length}件</div>
+        <div class="hero-amount"><span class="yen">¥</span>${yen(total)}</div>
+        ${total ? `<div class="stack-bar">${items.map((it) => `<i style="--c:${esc(colorOf(it))};width:${(it.amount / total) * 100}%"></i>`).join('')}</div>` : ''}
+      </div>
+      ${items.length ? `<div class="group">${items.map((it) => `
+        <button class="row cat-row" data-act="open" data-cat="${it.id}">
+          <span class="cat-dot lg" style="--c:${esc(colorOf(it))}"></span>
+          <div class="row-main">
+            <div class="cat-line"><span class="row-title">${esc(nameOf(it))}</span><span class="row-value">¥${yen(it.amount)}</span></div>
+            <div class="cat-bar"><i style="--c:${esc(colorOf(it))};width:${(it.amount / total) * 100}%"></i></div>
+            <div class="row-sub">${Math.round((it.amount / total) * 100)}%　${it.count}件</div>
+          </div>
+          ${I.chevron.replace('<svg', '<svg class="row-chevron"')}
+        </button>`).join('')}</div>`
+        : `<div class="group"><div class="empty"><strong>この月の${st.kind === 'out' ? '出金' : '入金'}はありません</strong>‹ › で月を切り替えられます。</div></div>`}
+      <div class="group-foot">振替と残高の調整は集計に含みません。合計外の財布の記録は含みます。</div>
+    `;
+    $('#screen').onclick = (e) => {
+      const k = e.target.closest('[data-kind]');
+      if (k) { st.kind = k.dataset.kind; render(); return; }
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'prev') { const d = new Date(st.y, st.m - 1, 1); st.y = d.getFullYear(); st.m = d.getMonth(); render(); }
+      else if (b.dataset.act === 'next') { const d = new Date(st.y, st.m + 1, 1); st.y = d.getFullYear(); st.m = d.getMonth(); render(); }
+      else if (b.dataset.act === 'today') { st.y = now.getFullYear(); st.m = now.getMonth(); render(); }
+      else if (b.dataset.act === 'open') {
+        Object.assign(searchState, { q: '', walletId: '', categoryId: b.dataset.cat || '__none', kind: st.kind, from: dayKey(from), to: dayKey(to) });
+        go('#/search');
+      }
+    };
+  };
+
+  /* ---------- 画面: 検索・絞り込み ---------- */
+  const searchState = { q: '', walletId: '', categoryId: '', kind: '', from: '', to: '' };
+  const resetSearch = () => Object.assign(searchState, { q: '', walletId: '', categoryId: '', kind: '', from: '', to: '' });
+
+  SCREENS.search = () => {
+    setNav({ left: backBtn('戻る', '#/'), title: '検索', right: '<button class="nav-btn" data-act="clear">クリア</button>' });
+    $('#bottombar').innerHTML = '';
+    $('#nav').onclick = (e) => { if (e.target.closest('[data-act="clear"]')) { resetSearch(); render(); } };
+    const st = searchState;
+    const now = new Date();
+    const presets = [
+      ['今月', new Date(now.getFullYear(), now.getMonth(), 1), now],
+      ['先月', new Date(now.getFullYear(), now.getMonth() - 1, 1), new Date(now.getFullYear(), now.getMonth(), 0)],
+      ['3か月', new Date(now.getFullYear(), now.getMonth() - 2, 1), now],
+      ['今年', new Date(now.getFullYear(), 0, 1), now],
+      ['全期間', null, null],
+    ];
+    $('#screen').innerHTML = `
+      <div class="searchbar">${I.search}<input id="q" type="search" placeholder="メモで検索" value="${esc(st.q)}" autocomplete="off" enterkeyhint="search"></div>
+      <div class="chips">${presets.map(([l, a, b]) => `<button class="chip" data-from="${a ? dayKey(a) : ''}" data-to="${b ? dayKey(b) : ''}">${l}</button>`).join('')}</div>
+      <div class="group">
+        <div class="field"><label for="s-from">開始</label><input id="s-from" type="date" value="${esc(st.from)}"></div>
+        <div class="field"><label for="s-to">終了</label><input id="s-to" type="date" value="${esc(st.to)}"></div>
+        <div class="field"><label for="s-wallet">財布</label><select id="s-wallet"><option value="">すべて</option>${store.wallets.map((w) => `<option value="${w.id}" ${st.walletId === w.id ? 'selected' : ''}>${esc(w.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="s-cat">カテゴリ</label><select id="s-cat"><option value="">すべて</option><option value="__none" ${st.categoryId === '__none' ? 'selected' : ''}>未分類</option>${store.categories.map((c) => `<option value="${c.id}" ${st.categoryId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+        <div class="field"><label for="s-kind">種類</label><select id="s-kind">${[['', 'すべて'], ['in', '入金'], ['out', '出金'], ['transfer', '振替'], ['adjust', '残高の調整']].map(([v, l]) => `<option value="${v}" ${st.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      </div>
+      <div id="s-summary" class="group-title"></div>
+      <div id="s-results"></div>
+    `;
+    const s = $('#screen');
+    const read = () => {
+      st.q = $('#q', s).value.trim(); st.from = $('#s-from', s).value; st.to = $('#s-to', s).value;
+      st.walletId = $('#s-wallet', s).value; st.categoryId = $('#s-cat', s).value; st.kind = $('#s-kind', s).value;
+    };
+    const markChips = () => $$('.chip', s).forEach((c) => c.classList.toggle('active', c.dataset.from === st.from && c.dataset.to === st.to));
+    const run = () => {
+      read(); markChips();
+      const q = st.q.toLowerCase();
+      const from = st.from ? new Date(st.from + 'T00:00:00') : null;
+      const to = st.to ? new Date(st.to + 'T23:59:59.999') : null;
+      const list = store.tx.filter((t) => {
+        if (st.walletId && t.walletId !== st.walletId) return false;
+        if (st.categoryId === '__none' ? t.categoryId && categoryById(t.categoryId) : st.categoryId && t.categoryId !== st.categoryId) return false;
+        if (st.kind === 'in' && (t.kind === 'transfer' || t.kind === 'adjust' || t.amount < 0)) return false;
+        if (st.kind === 'out' && (t.kind === 'transfer' || t.kind === 'adjust' || t.amount >= 0)) return false;
+        if ((st.kind === 'transfer' || st.kind === 'adjust') && t.kind !== st.kind) return false;
+        const d = new Date(t.at);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        if (q) {
+          const cat = t.categoryId && categoryById(t.categoryId);
+          const hay = `${t.memo || ''} ${cat ? cat.name : ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      }).sort((a, b) => new Date(b.at) - new Date(a.at));
+      let inc = 0, exp = 0;
+      for (const t of list) { if (t.kind === 'transfer' || t.kind === 'adjust') continue; if (t.amount > 0) inc += t.amount; else exp -= t.amount; }
+      $('#s-summary', s).innerHTML = `${list.length}件　<span style="color:var(--green)">+${yen(inc)}</span>　<span style="color:var(--red)">−${yen(exp)}</span>`;
+      let html = '', lastDay = null;
+      for (const t of list) {
+        const k = dayKey(t.at);
+        if (k !== lastDay) { if (lastDay !== null) html += '</div>'; html += `<div class="tx-date">${fmtDateHeading(t.at)}</div><div class="group">`; lastDay = k; }
+        html += txRow(t, { showWallet: true });
+      }
+      if (lastDay !== null) html += '</div>';
+      $('#s-results', s).innerHTML = html || `<div class="group"><div class="empty"><strong>見つかりませんでした</strong>条件を変えてみてください。</div></div>`;
+    };
+    run();
+    $('#q', s).addEventListener('input', run);
+    for (const id of ['s-from', 's-to', 's-wallet', 's-cat', 's-kind']) $('#' + id, s).addEventListener('change', run);
+    s.onclick = (e) => {
+      const chip = e.target.closest('.chip');
+      if (chip) { $('#s-from', s).value = chip.dataset.from; $('#s-to', s).value = chip.dataset.to; run(); return; }
+      const b = e.target.closest('[data-act="tx"]');
+      if (b) txForm({ tx: store.tx.find((t) => t.id === b.dataset.id) });
     };
   };
 
