@@ -3,133 +3,338 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
-<title>ツール一覧</title>
+<title>ツール</title>
 <style>
 :root {
   --bg: #F2F2F7;
   --card: #FFFFFF;
+  --bar: rgba(249, 249, 249, 0.94);
   --label: #000000;
   --sub: #6C6C70;
-  --sep: rgba(60, 60, 67, 0.12);
+  --sep: rgba(60, 60, 67, 0.15);
   --accent: #007AFF;
+  --active-bg: rgba(0, 122, 255, 0.12);
   --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", Roboto, sans-serif;
+  --tab-h: 56px;
+  --side-w: 232px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #000000;
     --card: #1C1C1E;
+    --bar: rgba(22, 22, 24, 0.94);
     --label: #FFFFFF;
     --sub: #98989F;
     --sep: rgba(84, 84, 88, 0.6);
     --accent: #0A84FF;
+    --active-bg: rgba(10, 132, 255, 0.2);
   }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; }
+html, body { margin: 0; height: 100%; }
 body {
   background: var(--bg);
   color: var(--label);
   font-family: var(--font);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-}
-main {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: calc(24px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
-}
-h1 { font-size: 30px; font-weight: 700; margin: 8px 4px 20px; }
-h2 { font-size: 13px; font-weight: 400; color: var(--sub); margin: 24px 16px 6px; }
-ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  background: var(--card);
-  border-radius: 12px;
   overflow: hidden;
 }
-li + li a { border-top: 0.5px solid var(--sep); }
-a {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  color: inherit;
-  text-decoration: none;
-}
-a:active { background: var(--sep); }
-a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
 .icon {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 9px;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
+  flex: none; width: 28px; height: 28px; border-radius: 7px;
+  display: grid; place-items: center; font-size: 17px; overflow: hidden;
   background: var(--bg);
-  overflow: hidden;
 }
 .icon img { width: 100%; height: 100%; object-fit: cover; }
-.text { flex: 1; min-width: 0; }
-.name { display: block; font-size: 17px; }
-.desc { display: block; font-size: 13px; color: var(--sub); }
-.chev { color: var(--sub); font-size: 20px; }
+
+/* ---- 画面本体 ---- */
+#stage {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
+}
+#stage iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border: 0; background: var(--bg);
+}
+#stage iframe[hidden] { display: none; }
+
+/* ---- ホーム（一覧） ---- */
+#home {
+  position: absolute; inset: 0; overflow-y: auto;
+  padding: calc(20px + env(safe-area-inset-top)) 16px 24px;
+}
+#home[hidden] { display: none; }
+#home .inner { max-width: 640px; margin: 0 auto; }
+#home h1 { font-size: 30px; margin: 8px 4px 16px; }
+#home h2 { font-size: 13px; font-weight: 400; color: var(--sub); margin: 20px 16px 6px; }
+#home ul { list-style: none; margin: 0; padding: 0; background: var(--card); border-radius: 12px; overflow: hidden; }
+#home li + li a { border-top: 0.5px solid var(--sep); }
+#home a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+#home a:active { background: var(--sep); }
+#home .icon { width: 40px; height: 40px; border-radius: 9px; font-size: 22px; }
+#home .name { display: block; font-size: 17px; }
+#home .desc { display: block; font-size: 13px; color: var(--sub); }
+#home .text { flex: 1; min-width: 0; }
+#home .chev { color: var(--sub); font-size: 20px; }
+
+/* ---- スマホ：下部タブバー ---- */
+#tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  height: calc(var(--tab-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  background: var(--bar);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--sep);
+}
+#tabbar button {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 10px; color: var(--sub);
+}
+#tabbar button .icon { width: 26px; height: 26px; background: transparent; }
+#tabbar button span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+#tabbar button[aria-current="page"] { color: var(--accent); font-weight: 600; }
+
+/* ---- 「すべて」シート ---- */
+#sheet-backdrop {
+  position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,0.35);
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+#sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21;
+  max-height: 80vh; overflow-y: auto;
+  background: var(--bg);
+  border-radius: 14px 14px 0 0;
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+  transform: translateY(100%); transition: transform .25s ease;
+}
+body.sheet-open #sheet-backdrop { opacity: 1; pointer-events: auto; }
+body.sheet-open #sheet { transform: none; }
+#sheet .grip { width: 36px; height: 5px; border-radius: 3px; background: var(--sep); margin: 4px auto 12px; }
+#sheet h2 { font-size: 13px; font-weight: 400; color: var(--sub); margin: 14px 8px 6px; }
+#sheet .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+#sheet .grid button {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 4px; border-radius: 12px; background: var(--card); font-size: 12px; text-align: center;
+}
+#sheet .grid button .icon { width: 40px; height: 40px; border-radius: 9px; font-size: 22px; }
+#sheet .grid button[aria-current="page"] { outline: 2px solid var(--accent); }
+#sheet .hint { font-size: 12px; color: var(--sub); margin: 16px 8px 0; }
+
+/* ---- パソコン・タブレット：サイドバー ---- */
+#sidebar { display: none; }
+@media (min-width: 768px) {
+  #tabbar, #sheet, #sheet-backdrop { display: none; }
+  #stage { left: var(--side-w); bottom: 0; }
+  #sidebar {
+    display: flex; flex-direction: column;
+    position: fixed; top: 0; bottom: 0; left: 0; width: var(--side-w);
+    padding: 16px 10px; overflow-y: auto;
+    background: var(--card);
+    border-right: 0.5px solid var(--sep);
+  }
+  #sidebar .title { font-size: 20px; font-weight: 700; padding: 4px 10px 8px; }
+  #sidebar h2 { font-size: 12px; font-weight: 400; color: var(--sub); margin: 14px 10px 4px; }
+  #sidebar button {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 7px 10px; border-radius: 8px; font-size: 15px; text-align: left;
+  }
+  #sidebar button:hover { background: var(--sep); }
+  #sidebar button[aria-current="page"] { background: var(--active-bg); color: var(--accent); font-weight: 600; }
+}
 </style>
 </head>
 <body>
-<main>
-  <h1>ツール一覧</h1>
 
-  <h2>記録・管理</h2>
-  <ul>
-    <li><a href="./kiroku-calendar/">
-      <span class="icon"><img src="./kiroku-calendar/icons/icon-192.png" alt="" onerror="this.replaceWith('📅')"></span>
-      <span class="text"><span class="name">きろくカレンダー</span><span class="desc">服薬・メモ・シフトと給与</span></span>
-      <span class="chev">›</span></a></li>
-    <li><a href="./okozukai/">
-      <span class="icon"><img src="./okozukai/icons/icon-192.png" alt="" onerror="this.replaceWith('👛')"></span>
-      <span class="text"><span class="name">お小遣い帳</span><span class="desc">財布ごとの入金・出金・振替</span></span>
-      <span class="chev">›</span></a></li>
-    <li><a href="./meibo/">
-      <span class="icon"><img src="./meibo/icons/icon-192.png" alt="" onerror="this.replaceWith('👥')"></span>
-      <span class="text"><span class="name">名簿</span><span class="desc">あだ名・タグ・色で人物を整理</span></span>
-      <span class="chev">›</span></a></li>
-    <li><a href="./sitememo/">
-      <span class="icon">🔖</span>
-      <span class="text"><span class="name">サイトメモ</span><span class="desc">サイトとメモをタグで管理</span></span>
-      <span class="chev">›</span></a></li>
-    <li><a href="./teiki-oshirase/">
-      <span class="icon">⏰</span>
-      <span class="text"><span class="name">配布タイマー</span><span class="desc">配布の時刻をチャイムと通知で知らせる</span></span>
-      <span class="chev">›</span></a></li>
-  </ul>
+<nav id="sidebar" aria-label="ツール"></nav>
 
-  <h2>計算</h2>
-  <ul>
-    <li><a href="./otoku-checker/">
-      <span class="icon"><img src="./otoku-checker/icons/icon-192.png" alt="" onerror="this.replaceWith('🛒')"></span>
-      <span class="text"><span class="name">おとくチェック</span><span class="desc">単価を比べてどちらがお得か判定</span></span>
-      <span class="chev">›</span></a></li>
-  </ul>
-
-  <h2>ファイル・画像</h2>
-  <ul>
-    <li><a href="./pdf-merge/">
-      <span class="icon">📄</span>
-      <span class="text"><span class="name">PDF結合</span><span class="desc">複数のPDFを印刷用に1つにまとめる</span></span>
-      <span class="chev">›</span></a></li>
-    <li><a href="./upscale-site/">
-      <span class="icon"><img src="./upscale-site/icon.svg" alt="" onerror="this.replaceWith('🖼️')"></span>
-      <span class="text"><span class="name">画像サイズ拡大</span><span class="desc">倍率・ピクセル・印刷サイズで拡大</span></span>
-      <span class="chev">›</span></a></li>
-    <li><a href="./png/">
-      <span class="icon">🗜️</span>
-      <span class="text"><span class="name">PNG ZIP Renamer</span><span class="desc">画像をPNGに変換し、連番名でZIP保存</span></span>
-      <span class="chev">›</span></a></li>
-  </ul>
+<main id="stage">
+  <section id="home"><div class="inner"><h1>ツール一覧</h1><div id="home-list"></div></div></section>
 </main>
+
+<nav id="tabbar" aria-label="よく使うツール"></nav>
+<div id="sheet-backdrop"></div>
+<div id="sheet" role="dialog" aria-label="すべてのツール">
+  <div class="grip"></div>
+  <div id="sheet-list"></div>
+  <p class="hint">ここでツールを長押しすると、下のバーに出す3つを入れ替えられます。</p>
+</div>
+
+<script>
+(function () {
+  // ツール一覧。新しいツールを追加するときはここに1行足す
+  var TOOLS = [
+    { id: 'kiroku-calendar', name: 'きろくカレンダー', short: 'きろく', desc: '服薬・メモ・シフトと給与', group: '記録・管理', icon: 'kiroku-calendar/icons/icon-192.png', emoji: '📅' },
+    { id: 'okozukai', name: 'お小遣い帳', short: 'お小遣い', desc: '財布ごとの入金・出金・振替', group: '記録・管理', icon: 'okozukai/icons/icon-192.png', emoji: '👛' },
+    { id: 'meibo', name: '名簿', short: '名簿', desc: 'あだ名・タグ・色で人物を整理', group: '記録・管理', icon: 'meibo/icons/icon-192.png', emoji: '👥' },
+    { id: 'sitememo', name: 'サイトメモ', short: 'メモ', desc: 'サイトとメモをタグで管理', group: '記録・管理', emoji: '🔖' },
+    { id: 'teiki-oshirase', name: '配布タイマー', short: 'タイマー', desc: '配布の時刻をチャイムと通知で知らせる', group: '記録・管理', emoji: '⏰' },
+    { id: 'otoku-checker', name: 'おとくチェック', short: 'おとく', desc: '単価を比べてどちらがお得か判定', group: '計算', icon: 'otoku-checker/icons/icon-192.png', emoji: '🛒' },
+    { id: 'pdf-merge', name: 'PDF結合', short: 'PDF', desc: '複数のPDFを印刷用に1つにまとめる', group: 'ファイル・画像', emoji: '📄' },
+    { id: 'upscale-site', name: '画像サイズ拡大', short: '画像拡大', desc: '倍率・ピクセル・印刷サイズで拡大', group: 'ファイル・画像', icon: 'upscale-site/icon.svg', emoji: '🖼️' },
+    { id: 'png', name: 'PNG ZIP Renamer', short: 'PNG', desc: '画像をPNGに変換し、連番名でZIP保存', group: 'ファイル・画像', emoji: '🗜️' }
+  ];
+  var byId = {};
+  TOOLS.forEach(function (t) { byId[t.id] = t; });
+  var HOME = { id: '', name: 'ホーム', short: 'ホーム', emoji: '🏠' };
+
+  // 下部バーに出すツール（端末ごとに記憶）
+  var FAV_KEY = 'tools-hub:favorites';
+  var favorites = ['kiroku-calendar', 'okozukai', 'meibo'];
+  try {
+    var saved = JSON.parse(localStorage.getItem(FAV_KEY));
+    if (Array.isArray(saved)) favorites = saved.filter(function (id) { return byId[id]; }).slice(0, 3);
+  } catch (e) {}
+  function saveFavorites() { try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); } catch (e) {} }
+
+  function iconHtml(t) {
+    if (t.icon) return '<span class="icon"><img src="' + t.icon + '" alt="" data-emoji="' + t.emoji + '"></span>';
+    return '<span class="icon">' + t.emoji + '</span>';
+  }
+  function groups() {
+    var out = [];
+    TOOLS.forEach(function (t) {
+      var g = out.filter(function (x) { return x.name === t.group; })[0];
+      if (!g) { g = { name: t.group, items: [] }; out.push(g); }
+      g.items.push(t);
+    });
+    return out;
+  }
+
+  var stage = document.getElementById('stage');
+  var home = document.getElementById('home');
+  var frames = {}; // 一度開いたツールは iframe を残し、切り替えても状態を保つ
+
+  function render() {
+    // サイドバー
+    var s = '<div class="title">ツール</div><button data-go="">' + iconHtml(HOME) + '<span>ホーム</span></button>';
+    groups().forEach(function (g) {
+      s += '<h2>' + g.name + '</h2>';
+      g.items.forEach(function (t) { s += '<button data-go="' + t.id + '">' + iconHtml(t) + '<span>' + t.name + '</span></button>'; });
+    });
+    document.getElementById('sidebar').innerHTML = s;
+
+    // 一覧ページ
+    var h = '';
+    groups().forEach(function (g) {
+      h += '<h2>' + g.name + '</h2><ul>';
+      g.items.forEach(function (t) {
+        h += '<li><a href="#/' + t.id + '">' + iconHtml(t) + '<span class="text"><span class="name">' + t.name +
+             '</span><span class="desc">' + t.desc + '</span></span><span class="chev">›</span></a></li>';
+      });
+      h += '</ul>';
+    });
+    document.getElementById('home-list').innerHTML = h;
+
+    // 「すべて」シート
+    var sh = '';
+    groups().forEach(function (g) {
+      sh += '<h2>' + g.name + '</h2><div class="grid">';
+      g.items.forEach(function (t) { sh += '<button data-go="' + t.id + '" data-fav="' + t.id + '">' + iconHtml(t) + '<span>' + t.name + '</span></button>'; });
+      sh += '</div>';
+    });
+    document.getElementById('sheet-list').innerHTML = sh;
+
+    renderTabbar();
+    fixIcons(document);
+  }
+
+  function renderTabbar() {
+    var b = '<button data-go="">' + iconHtml(HOME) + '<span>ホーム</span></button>';
+    favorites.forEach(function (id) { var t = byId[id]; b += '<button data-go="' + id + '">' + iconHtml(t) + '<span>' + t.short + '</span></button>'; });
+    b += '<button id="more-btn" data-more="1"><span class="icon">☰</span><span>すべて</span></button>';
+    document.getElementById('tabbar').innerHTML = b;
+    fixIcons(document.getElementById('tabbar'));
+    markCurrent();
+  }
+
+  // 画像が読めないときは絵文字に差し替える
+  function fixIcons(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('img[data-emoji]'), function (img) {
+      img.addEventListener('error', function () { img.parentNode.textContent = img.dataset.emoji; }, { once: true });
+    });
+  }
+
+  function current() { return location.hash.replace(/^#\/?/, '').split('/')[0]; }
+
+  function show() {
+    var id = current();
+    if (id && !byId[id]) id = '';
+    home.hidden = !!id;
+    Object.keys(frames).forEach(function (k) { frames[k].hidden = k !== id; });
+    if (id && !frames[id]) {
+      var f = document.createElement('iframe');
+      f.src = id + '/';
+      f.title = byId[id].name;
+      f.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
+      stage.appendChild(f);
+      frames[id] = f;
+    }
+    document.title = id ? byId[id].name + ' - ツール' : 'ツール';
+    markCurrent();
+  }
+
+  function markCurrent() {
+    var id = current();
+    Array.prototype.forEach.call(document.querySelectorAll('[data-go]'), function (el) {
+      if (el.dataset.go === id) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
+    });
+    var more = document.getElementById('more-btn');
+    if (more) {
+      var inBar = id === '' || favorites.indexOf(id) !== -1;
+      if (inBar) more.removeAttribute('aria-current'); else more.setAttribute('aria-current', 'page');
+    }
+  }
+
+  function closeSheet() { document.body.classList.remove('sheet-open'); }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-go],[data-more]');
+    if (!el) return;
+    if (el.dataset.more) { document.body.classList.toggle('sheet-open'); return; }
+    if (longPressed) { longPressed = false; return; }
+    var target = '#/' + el.dataset.go;
+    if (location.hash !== target) location.hash = target; else show();
+    closeSheet();
+  });
+  document.getElementById('sheet-backdrop').addEventListener('click', closeSheet);
+
+  // シート内で長押し → 下部バーに追加/入れ替え
+  var pressTimer = null, longPressed = false;
+  document.getElementById('sheet').addEventListener('pointerdown', function (e) {
+    var el = e.target.closest('[data-fav]');
+    if (!el) return;
+    longPressed = false;
+    pressTimer = setTimeout(function () {
+      longPressed = true;
+      var id = el.dataset.fav;
+      var i = favorites.indexOf(id);
+      if (i !== -1) favorites.splice(i, 1);
+      else { favorites.unshift(id); favorites = favorites.slice(0, 3); }
+      saveFavorites();
+      renderTabbar();
+      if (navigator.vibrate) navigator.vibrate(15);
+      el.animate && el.animate([{ transform: 'scale(0.9)' }, { transform: 'scale(1)' }], 200);
+    }, 550);
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) {
+    document.getElementById('sheet').addEventListener(ev, function () { clearTimeout(pressTimer); });
+  });
+  document.getElementById('sheet').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  window.addEventListener('hashchange', show);
+  render();
+  show();
+})();
+</script>
 </body>
 </html>
