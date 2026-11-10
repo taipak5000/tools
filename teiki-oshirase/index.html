@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>配布タイマー</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f2f2f7;
+    --card: rgba(255, 255, 255, 0.72);
+    --card-solid: #ffffff;
+    --card-border: rgba(255, 255, 255, 0.6);
+    --text: #1c1c1e;
+    --text-2: #6e6e73;
+    --text-3: #aeaeb2;
+    --fill: rgba(120, 120, 128, 0.12);
+    --fill-2: rgba(120, 120, 128, 0.2);
+    --sep: rgba(60, 60, 67, 0.12);
+    --accent: #0a84ff;
+    --accent-soft: rgba(10, 132, 255, 0.14);
+    --green: #30d158;
+    --red: #ff453a;
+    --ring-track: rgba(120, 120, 128, 0.16);
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06);
+    --spring: cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000;
+      --card: rgba(28, 28, 30, 0.72);
+      --card-solid: #1c1c1e;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f5f5f7;
+      --text-2: #98989d;
+      --text-3: #636366;
+      --fill: rgba(120, 120, 128, 0.24);
+      --fill-2: rgba(120, 120, 128, 0.32);
+      --sep: rgba(84, 84, 88, 0.6);
+      --accent-soft: rgba(10, 132, 255, 0.22);
+      --ring-track: rgba(120, 120, 128, 0.24);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.4);
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { font: 100%/1.5 -apple-system, BlinkMacSystemFont, system-ui, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px calc(env(safe-area-inset-bottom, 0px) + 32px);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum";
+  }
+  .app { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  header { padding: 8px 4px 0; }
+  h1 { font-size: 2rem; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; margin: 0; }
+  .subtitle { color: var(--text-2); margin: 4px 0 0; font-size: 0.95rem; }
+
+  .card {
+    background: var(--card);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--card-border);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .card, .toast { background: var(--card-solid); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  }
+
+  #timers { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---- Timer card ---- */
+  .timer { --c: var(--accent); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .t-head { display: flex; align-items: center; gap: 10px; }
+  .t-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; transition: transform 0.3s var(--spring); }
+  .timer.running .t-dot { transform: scale(1.25); }
+  .t-name {
+    flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 1.15rem; font-weight: 600; color: var(--text);
+    letter-spacing: -0.01em; outline: none; padding: 4px 6px; margin: 0 -6px; border-radius: 8px;
+  }
+  .t-name:focus { background: var(--fill); }
+  .t-name::placeholder { color: var(--text-3); }
+  .gear {
+    border: 0; background: var(--fill); color: var(--text-2); font: inherit; font-size: 0.85rem; font-weight: 600; border-radius: 999px; padding: 6px 12px; cursor: pointer;
+    transition: transform 0.18s var(--spring), background 0.2s;
+  }
+  .gear:active { transform: scale(0.94); }
+  .gear[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+
+  .ring-wrap { position: relative; width: 190px; height: 190px; margin: 0 auto; }
+  .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 10; stroke-linecap: round; }
+  .ring .track { stroke: var(--ring-track); }
+  .ring .bar { stroke: var(--c); transition: stroke-dashoffset 0.28s linear, stroke 0.4s var(--spring); }
+  .timer.collect .ring .bar { stroke: var(--green); }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .time { font-size: 2.6rem; line-height: 1; letter-spacing: -0.03em; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .phase { color: var(--text-2); font-size: 0.8rem; font-weight: 500; }
+  .timer.collect .phase { color: var(--green); font-weight: 600; }
+  .t-meta { text-align: center; color: var(--text-2); font-size: 0.85rem; margin-top: -4px; }
+
+  .actions { display: flex; gap: 10px; }
+  .btn {
+    flex: 1; border: 0; border-radius: 16px; padding: 14px 8px; font: inherit; font-size: 1rem; white-space: nowrap; font-weight: 600; cursor: pointer;
+    color: #fff; background: var(--c);
+    transform: scale(1); transition: transform 0.18s var(--spring), background 0.25s, opacity 0.25s;
+    user-select: none; -webkit-user-select: none;
+  }
+  .btn:active { transform: scale(0.96); transition-duration: 0.08s; }
+  .btn.secondary { background: var(--fill); color: var(--text); }
+  .btn.stop { background: var(--fill); color: var(--red); }
+  .btn.add { background: var(--fill-2); color: var(--accent); }
+  .btn[disabled] { opacity: 0.4; pointer-events: none; }
+
+  /* ---- settings ---- */
+  .settings { margin: 0 -18px -18px; border-top: 1px solid var(--sep); }
+  .settings[hidden] { display: none; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; min-height: 52px; }
+  .row + .row { border-top: 1px solid var(--sep); }
+  .row .label { font-size: 1rem; }
+  .row .hint { display: block; color: var(--text-2); font-size: 0.78rem; margin-top: 1px; }
+  .ctl { display: flex; align-items: center; }
+  .ctl-wrap { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .stepper { display: flex; align-items: center; background: var(--fill); border-radius: 12px; overflow: hidden; }
+  .stepper button {
+    width: 36px; height: 36px; border: 0; background: transparent; color: var(--accent); font-size: 1.3rem; cursor: pointer; font-weight: 500; line-height: 1;
+    transition: background 0.15s;
+  }
+  .stepper button:active { background: var(--fill-2); }
+  .stepper input {
+    width: 48px; height: 36px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 1.05rem; font-weight: 600; text-align: center;
+    font-variant-numeric: tabular-nums; outline: none; -moz-appearance: textfield;
+  }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .unit { color: var(--text-2); font-size: 0.85rem; margin-left: 6px; min-width: 1.5em; }
+  .link-btn { border: 0; background: none; color: var(--accent); font: inherit; font-size: 0.95rem; font-weight: 500; cursor: pointer; padding: 0; }
+  .link-btn.danger { color: var(--red); }
+
+  .list { display: flex; flex-direction: column; }
+  .list .section-title { padding: 12px 18px 6px; font-size: 0.78rem; font-weight: 600; color: var(--text-2); letter-spacing: 0.02em; }
+
+  .switch { position: relative; width: 51px; height: 31px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--fill-2); cursor: pointer; transition: background 0.25s var(--spring); }
+  .switch span::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.06); transition: transform 0.3s var(--spring);
+  }
+  .switch input:checked + span { background: var(--green); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .perm.ok { color: var(--green); }
+  .perm.bad { color: var(--red); }
+
+  footer { text-align: center; color: var(--text-3); font-size: 0.78rem; padding: 4px 8px; line-height: 1.6; }
+
+  /* ---- toasts: インターバルが終わると自動で消える ---- */
+  #toasts {
+    position: fixed; z-index: 20; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 12px);
+    display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none;
+  }
+  .toast {
+    --c: var(--accent);
+    pointer-events: auto; cursor: pointer; width: 100%; max-width: 420px; position: relative; overflow: hidden;
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: var(--card); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--card-border); border-radius: 20px; box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+    opacity: 0; transform: translateY(-16px) scale(0.97);
+    transition: opacity 0.25s ease, transform 0.4s var(--spring);
+  }
+  .toast.in { opacity: 1; transform: none; }
+  .toast.out { opacity: 0; transform: translateY(-12px) scale(0.97); transition-duration: 0.2s; }
+  .toast .ico { width: 36px; height: 36px; border-radius: 11px; background: var(--c); display: grid; place-items: center; font-size: 1.15rem; flex: none; }
+  .toast b { display: block; font-size: 0.98rem; letter-spacing: -0.01em; }
+  .toast small { display: block; color: var(--text-2); font-size: 0.8rem; }
+  .toast .bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--c); transform-origin: left; opacity: 0.8; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="toasts" aria-live="assertive"></div>
+<div class="app">
+  <header>
+    <h1>配布タイマー</h1>
+    <p class="subtitle">配布を何種類でも登録して、同時に動かせます。</p>
+  </header>
+
+  <div id="timers"></div>
+  <button class="btn add" id="addBtn">＋ 配布を追加</button>
+
+  <section class="card list">
+    <div class="section-title">通知</div>
+    <div class="row">
+      <div><span class="label">サウンド</span><span class="hint">配布時にチャイムを鳴らす</span></div>
+      <label class="switch"><input type="checkbox" id="soundOn"><span></span></label>
+    </div>
+    <div class="row">
+      <div><span class="label">デスクトップ通知</span><span class="hint perm" id="permHint">タブを離れていても届きます</span></div>
+      <label class="switch"><input type="checkbox" id="notifyOn"><span></span></label>
+    </div>
+    <div class="row">
+      <div><span class="label">バイブレーション</span><span class="hint">対応端末のみ</span></div>
+      <label class="switch"><input type="checkbox" id="vibeOn"><span></span></label>
+    </div>
+    <div class="row">
+      <span class="label">テスト</span>
+      <button class="link-btn" id="testBtn">通知を試す</button>
+    </div>
+  </section>
+
+  <footer>設定と進行状況はこの端末に保存されます。ページを閉じても、開き直せば続きから数えます。<br>ブラウザを完全に終了すると通知は届きません。</footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const KEY = 'haifu-timer-v2';
+  const OLD_KEY = 'haifu-timer-v1';
+  const CIRC = 2 * Math.PI * 90;
+  const COLORS = ['#0a84ff', '#bf5af2', '#ff375f', '#ff9f0a', '#5e5ce6', '#64d2ff'];
+  const MAX_TIMERS = 12;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const pad = (n) => String(n).padStart(2, '0');
+
+  let s = { soundOn: true, notifyOn: false, vibeOn: true, timers: [] };
+
+  function makeTimer(i, over = {}) {
+    return {
+      id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      name: '', minutes: 30, seconds: 0, interval: 30,
+      color: COLORS[i % COLORS.length],
+      running: false, phase: 'idle', phaseEnd: 0, count: 0, notifiedFor: 0, open: true,
+      ...over,
+    };
+  }
+
+  // ---- persistence ----
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) { s = { ...s, ...JSON.parse(raw) }; }
+      else {
+        const old = localStorage.getItem(OLD_KEY); // 旧バージョンの設定を引き継ぐ
+        if (old) {
+          const o = JSON.parse(old);
+          s.soundOn = o.soundOn ?? true; s.notifyOn = !!o.notifyOn; s.vibeOn = o.vibeOn ?? true;
+          s.timers = [makeTimer(0, { name: o.itemName || '', minutes: o.minutes ?? 30, seconds: o.seconds ?? 0, interval: o.interval ?? 30,
+            running: !!o.running, phase: o.phase || 'idle', phaseEnd: o.phaseEnd || 0, count: o.count || 0, notifiedFor: o.notifiedFor || 0 })];
+        }
+      }
+    } catch (e) {}
+    if (!Array.isArray(s.timers) || !s.timers.length) s.timers = [makeTimer(0)];
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+
+  // ---- audio / notify / vibrate ----
+  let ctx = null, lastChime = 0;
+  function ensureAudio() {
+    try {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+    } catch (e) {}
+  }
+  function chime() {
+    if (!s.soundOn) return;
+    const nowMs = Date.now();
+    if (nowMs - lastChime < 400) return; // 同時刻に複数鳴っても1回にまとめる
+    lastChime = nowMs;
+    ensureAudio();
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    [[880, 0], [1108.7, 0.18], [1318.5, 0.36], [1760, 0.6]].forEach(([f, dt]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.55);
+      o.connect(g).connect(ctx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.6);
+    });
+  }
+  function vibrate() {
+    if (s.vibeOn && navigator.vibrate) { try { navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {} }
+  }
+  const hasNotif = 'Notification' in window;
+  function updatePermHint() {
+    const el = $('permHint');
+    el.className = 'hint perm';
+    if (!hasNotif) { el.textContent = 'このブラウザは非対応です'; el.classList.add('bad'); $('notifyOn').disabled = true; return; }
+    if (Notification.permission === 'granted') { el.textContent = '許可済み・タブを離れていても届きます'; el.classList.add('ok'); }
+    else if (Notification.permission === 'denied') { el.textContent = 'ブラウザで通知がブロックされています'; el.classList.add('bad'); }
+    else { el.textContent = 'オンにすると許可を求めます'; }
+  }
+  async function requestPerm() {
+    if (!hasNotif) return false;
+    if (Notification.permission === 'granted') return true;
+    try { const r = await Notification.requestPermission(); updatePermHint(); return r === 'granted'; } catch (e) { return false; }
+  }
+  function osNotify(key, title, body) {
+    if (!s.notifyOn || !hasNotif || Notification.permission !== 'granted') return null;
+    try {
+      const n = new Notification(title, { body, tag: 'haifu-' + key });
+      n.onclick = () => { window.focus(); n.close(); };
+      return n;
+    } catch (e) { return null; }
+  }
+
+  // ---- helpers ----
+  function fmtDur(ms) {
+    const t = Math.max(0, Math.ceil(ms / 1000));
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+    return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  }
+  const fmtClock = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const idx = (t) => s.timers.indexOf(t);
+  const label = (t) => t.name.trim() || `配布 ${idx(t) + 1}`;
+  const waitMs = (t) => Math.max(1000, t.minutes * 60000 + t.seconds * 1000);
+  const intervalMs = (t) => Math.max(0, t.interval) * 1000;
+
+  // ---- toasts (インターバル終了と同時に自動で消える) ----
+  const toasts = new Map(); // key -> {el, bar, sub, until, total, notif}
+  function showToast(key, title, color, until, subFn) {
+    removeToast(key, true);
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.style.setProperty('--c', color);
+    el.innerHTML = '<div class="ico">🎁</div><div><b></b><small></small></div><div class="bar"></div>';
+    el.querySelector('b').textContent = title;
+    $('toasts').appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+    const entry = { el, bar: el.querySelector('.bar'), sub: el.querySelector('small'), until, total: Math.max(1, until - Date.now()), notif: null, subFn };
+    el.addEventListener('click', () => removeToast(key));
+    toasts.set(key, entry);
+    updateToasts();
+    return entry;
+  }
+  function removeToast(key, immediate) {
+    const e = toasts.get(key);
+    if (!e) return;
+    toasts.delete(key);
+    if (e.notif) { try { e.notif.close(); } catch (x) {} }
+    if (immediate) { e.el.remove(); } else { e.el.classList.remove('in'); e.el.classList.add('out'); setTimeout(() => e.el.remove(), 220); }
+    syncTitle();
+  }
+  function updateToasts() {
+    const now = Date.now();
+    for (const [key, e] of [...toasts]) {
+      const rem = e.until - now;
+      if (rem <= 0) { removeToast(key); continue; }
+      e.sub.textContent = e.subFn(Math.ceil(rem / 1000));
+      e.bar.style.transform = `scaleX(${clamp(rem / e.total, 0, 1)})`;
+    }
+    syncTitle();
+  }
+  function syncTitle() { document.title = toasts.size ? '🎁 配布中 — 配布タイマー' : '配布タイマー'; }
+  const subText = (sec) => `あと${sec}秒で自動的に消えます`;
+
+  // ---- timer logic ----
+  function startWait(t, from = Date.now()) {
+    t.phase = 'wait'; t.phaseEnd = from + waitMs(t); t.running = true; save();
+  }
+  function fire(t) {
+    if (t.notifiedFor === t.phaseEnd) return;
+    const firedAt = t.phaseEnd;
+    t.notifiedFor = firedAt;
+    t.count += 1;
+    const iv = intervalMs(t);
+    const fresh = Date.now() - firedAt < 5000; // 長時間開いていなかった分は鳴らさない
+    let until;
+    if (iv > 0) { t.phase = 'collect'; t.phaseEnd = firedAt + iv; until = t.phaseEnd; }
+    else { startWait(t, firedAt); until = Date.now() + 3000; }
+    save();
+    if (!fresh || until <= Date.now()) return;
+    chime(); vibrate();
+    const entry = showToast(t.id, `${label(t)}が配布されました`, t.color, until, subText);
+    entry.notif = osNotify(t.id, `${label(t)}が配布されました`, '受け取りに行きましょう');
+  }
+  function stopTimer(t) {
+    t.running = false; t.phase = 'idle'; t.phaseEnd = 0; save();
+    removeToast(t.id);
+  }
+  function advance(t) {
+    if (!t.running) return;
+    const now = Date.now();
+    let guard = 0;
+    while (now >= t.phaseEnd && guard++ < 1000) {
+      if (t.phase === 'wait') fire(t);
+      else if (t.phase === 'collect') startWait(t, t.phaseEnd);
+      else break;
+    }
+  }
+
+  // ---- DOM: timer cards ----
+  const refs = new Map(); // id -> {card, ...}
+  function stepperHTML(field, step, min, max, unit) {
+    return `<div class="ctl"><div class="stepper">
+      <button type="button" data-f="${field}" data-d="${-step}" aria-label="減らす">−</button>
+      <input type="number" data-f="${field}" min="${min}" max="${max}" inputmode="numeric">
+      <button type="button" data-f="${field}" data-d="${step}" aria-label="増やす">＋</button>
+    </div><span class="unit">${unit}</span></div>`;
+  }
+  function buildCard(t) {
+    const card = document.createElement('section');
+    card.className = 'card timer';
+    card.style.setProperty('--c', t.color);
+    card.innerHTML = `
+      <div class="t-head">
+        <span class="t-dot"></span>
+        <input class="t-name" maxlength="30" aria-label="配布の名前">
+        <button class="gear" type="button" aria-expanded="false">設定</button>
+      </div>
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 200 200"><circle class="track" cx="100" cy="100" r="90"></circle><circle class="bar" cx="100" cy="100" r="90"></circle></svg>
+        <div class="ring-center"><div class="time">--:--</div><div class="phase">停止中</div></div>
+      </div>
+      <div class="t-meta"></div>
+      <div class="actions">
+        <button class="btn start" type="button">開始</button>
+        <button class="btn secondary collect" type="button">今受け取った</button>
+      </div>
+      <div class="settings" hidden>
+        <div class="row">
+          <div><span class="label">配布間隔</span><span class="hint">受け取りから再配布まで</span></div>
+          <div class="ctl ctl-wrap">${stepperHTML('minutes', 1, 0, 1440, '分')}${stepperHTML('seconds', 5, 0, 59, '秒')}</div>
+        </div>
+        <div class="row">
+          <div><span class="label">インターバル</span><span class="hint">通知が出ている時間</span></div>
+          ${stepperHTML('interval', 5, 0, 3600, '秒')}
+        </div>
+        <div class="row">
+          <span class="label">この配布を削除</span>
+          <button class="link-btn danger del" type="button">削除</button>
+        </div>
+      </div>`;
+    const r = {
+      card,
+      name: card.querySelector('.t-name'),
+      bar: card.querySelector('.ring .bar'),
+      time: card.querySelector('.time'),
+      phase: card.querySelector('.phase'),
+      meta: card.querySelector('.t-meta'),
+      start: card.querySelector('.start'),
+      collect: card.querySelector('.collect'),
+      gear: card.querySelector('.gear'),
+      settings: card.querySelector('.settings'),
+      del: card.querySelector('.del'),
+      inputs: {
+        minutes: card.querySelector('input[data-f="minutes"]'),
+        seconds: card.querySelector('input[data-f="seconds"]'),
+        interval: card.querySelector('input[data-f="interval"]'),
+      },
+    };
+    r.bar.style.strokeDasharray = CIRC;
+    r.name.value = t.name;
+    r.name.placeholder = `配布 ${idx(t) + 1}`;
+    r.settings.hidden = !t.open;
+    r.gear.setAttribute('aria-expanded', String(t.open));
+    syncInputs(t, r);
+    refs.set(t.id, r);
+
+    r.name.addEventListener('input', () => { t.name = r.name.value; save(); });
+    r.gear.addEventListener('click', () => {
+      t.open = !t.open; r.settings.hidden = !t.open; r.gear.setAttribute('aria-expanded', String(t.open)); save();
+    });
+    r.start.addEventListener('click', () => {
+      ensureAudio();
+      if (t.running) { stopTimer(t); }
+      else { commit(t, r); t.count = 0; t.notifiedFor = 0; startWait(t); }
+      updateCard(t);
+    });
+    r.collect.addEventListener('click', () => {
+      ensureAudio(); removeToast(t.id); startWait(t); updateCard(t);
+    });
+    card.querySelectorAll('.stepper button').forEach(b => b.addEventListener('click', () => {
+      const f = b.dataset.f, inp = r.inputs[f];
+      inp.value = clamp((parseInt(inp.value, 10) || 0) + parseInt(b.dataset.d, 10), +inp.min, +inp.max);
+      commit(t, r); updateCard(t);
+    }));
+    Object.values(r.inputs).forEach(inp => inp.addEventListener('change', () => { commit(t, r); updateCard(t); }));
+    let delTimer = 0;
+    r.del.addEventListener('click', () => {
+      if (s.timers.length <= 1) { r.del.textContent = '最後の1つは削除できません'; setTimeout(() => (r.del.textContent = '削除'), 2000); return; }
+      if (!delTimer) {
+        r.del.textContent = 'もう一度押して削除';
+        delTimer = setTimeout(() => { delTimer = 0; r.del.textContent = '削除'; }, 3000);
+        return;
+      }
+      removeToast(t.id, true);
+      s.timers.splice(idx(t), 1); save(); renderList();
+    });
+    return card;
+  }
+  function syncInputs(t, r) {
+    r.inputs.minutes.value = t.minutes; r.inputs.seconds.value = t.seconds; r.inputs.interval.value = t.interval;
+  }
+  function commit(t, r) {
+    t.minutes = clamp(parseInt(r.inputs.minutes.value, 10) || 0, 0, 1440);
+    t.seconds = clamp(parseInt(r.inputs.seconds.value, 10) || 0, 0, 59);
+    if (t.minutes === 0 && t.seconds === 0) t.seconds = 1;
+    t.interval = clamp(parseInt(r.inputs.interval.value, 10) || 0, 0, 3600);
+    syncInputs(t, r); save();
+  }
+  function renderList() {
+    const list = $('timers');
+    list.innerHTML = ''; refs.clear();
+    s.timers.forEach(t => list.appendChild(buildCard(t)));
+    $('addBtn').disabled = s.timers.length >= MAX_TIMERS;
+    s.timers.forEach(updateCard);
+  }
+  function updateCard(t) {
+    const r = refs.get(t.id); if (!r) return;
+    const now = Date.now();
+    r.card.classList.toggle('running', t.running);
+    r.card.classList.toggle('collect', t.running && t.phase === 'collect');
+    r.start.textContent = t.running ? '停止' : '開始';
+    r.start.classList.toggle('stop', t.running);
+    r.collect.disabled = !t.running;
+    if (!t.running) {
+      r.time.textContent = fmtDur(waitMs(t));
+      r.phase.textContent = '停止中';
+      r.bar.style.strokeDashoffset = 0;
+      r.meta.textContent = '開始を押すとカウントが始まります';
+    } else if (t.phase === 'wait') {
+      const rem = t.phaseEnd - now;
+      r.time.textContent = fmtDur(rem);
+      r.phase.textContent = '次の配布まで';
+      r.bar.style.strokeDashoffset = CIRC * (1 - clamp(rem / waitMs(t), 0, 1));
+      r.meta.textContent = `次の配布 ${fmtClock(t.phaseEnd)} ・ ${t.count}回通知`;
+    } else {
+      const rem = t.phaseEnd - now;
+      r.time.textContent = fmtDur(rem);
+      r.phase.textContent = '受け取り中';
+      r.bar.style.strokeDashoffset = CIRC * (1 - clamp(rem / Math.max(1, intervalMs(t)), 0, 1));
+      r.meta.textContent = `次の配布 ${fmtClock(t.phaseEnd + waitMs(t))} ・ ${t.count}回通知`;
+    }
+  }
+
+  // ---- loop (絶対時刻ベース。タブが止まっても復帰時に追いつく) ----
+  function loop() {
+    s.timers.forEach(advance);
+    s.timers.forEach(updateCard);
+    updateToasts();
+  }
+  setInterval(loop, 250);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loop(); });
+  window.addEventListener('focus', loop);
+
+  // ---- global events ----
+  $('addBtn').addEventListener('click', () => {
+    if (s.timers.length >= MAX_TIMERS) return;
+    s.timers.push(makeTimer(s.timers.length)); save(); renderList();
+    const cards = $('timers').children; cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $('soundOn').addEventListener('change', (e) => { s.soundOn = e.target.checked; if (s.soundOn) ensureAudio(); save(); });
+  $('vibeOn').addEventListener('change', (e) => { s.vibeOn = e.target.checked; save(); });
+  $('notifyOn').addEventListener('change', async (e) => {
+    if (e.target.checked) { const ok = await requestPerm(); s.notifyOn = ok; e.target.checked = ok; }
+    else s.notifyOn = false;
+    save(); updatePermHint();
+  });
+  $('testBtn').addEventListener('click', async () => {
+    ensureAudio(); chime(); vibrate();
+    if (s.notifyOn) await requestPerm();
+    const e = showToast('__test', 'テスト通知', '#0a84ff', Date.now() + 5000, subText);
+    e.notif = osNotify('test', 'テスト通知', '配布タイマーからの通知はこのように届きます');
+  });
+
+  // ---- init ----
+  load();
+  $('soundOn').checked = s.soundOn;
+  $('vibeOn').checked = s.vibeOn;
+  $('notifyOn').checked = s.notifyOn && hasNotif && Notification.permission === 'granted';
+  updatePermHint();
+  renderList();
+  loop();
+})();
+</script>
+</body>
+</html>
