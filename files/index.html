@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>ファイル変換</title>
+<style>
+:root {
+  --bg: #F2F2F7; --card: #FFFFFF; --label: #000000; --sub: #6C6C70;
+  --fill: rgba(118, 118, 128, 0.12); --accent: #007AFF;
+  --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #000000; --card: #636366; --label: #FFFFFF; --sub: #98989F; --fill: rgba(118, 118, 128, 0.24); --accent: #0A84FF; }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--label); font-family: var(--font); -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+header { flex: none; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; background: var(--bg); }
+header .inner { max-width: 760px; margin: 0 auto; }
+h1 { font-size: 28px; margin: 4px 0 10px; }
+.seg { display: flex; padding: 2px; border-radius: 9px; background: var(--fill); }
+.seg button {
+  flex: 1; min-width: 0; border: 0; background: none; font: inherit; color: var(--label);
+  font-size: 13px; font-weight: 500; padding: 7px 4px; border-radius: 7px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.seg button[aria-selected="true"] { background: var(--card); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+.seg button:focus-visible { outline: 2px solid var(--accent); }
+main { flex: 1; position: relative; }
+main iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+main iframe[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="inner">
+    <h1>ファイル変換</h1>
+    <div class="seg" role="tablist" aria-label="機能">
+      <button role="tab" data-tab="pdf">PDF結合</button>
+      <button role="tab" data-tab="upscale">画像サイズ拡大</button>
+      <button role="tab" data-tab="png">PNG・ZIP</button>
+    </div>
+  </div>
+</header>
+<main id="main"></main>
+<script>
+(function () {
+  // それぞれの機能は元のツールをそのまま読み込む（処理はすべてブラウザ内）
+  var TABS = { pdf: '../pdf-merge/', upscale: '../upscale-site/', png: '../png/' };
+  var frames = {};
+  var main = document.getElementById('main');
+  var KEY = 'files:lastTab';
+
+  function pick() {
+    var h = location.hash.replace('#', '');
+    if (TABS[h]) return h;
+    try { var s = localStorage.getItem(KEY); if (TABS[s]) return s; } catch (e) {}
+    return 'pdf';
+  }
+  function show() {
+    var id = pick();
+    try { localStorage.setItem(KEY, id); } catch (e) {}
+    if (!frames[id]) {
+      var f = document.createElement('iframe');
+      f.src = TABS[id];
+      f.title = id;
+      main.appendChild(f);
+      frames[id] = f;
+    }
+    Object.keys(frames).forEach(function (k) { frames[k].hidden = k !== id; });
+    Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function (b) {
+      b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
+    });
+  }
+  document.querySelector('.seg').addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    history.replaceState(null, '', '#' + b.dataset.tab);
+    show();
+  });
+  window.addEventListener('hashchange', show);
+  show();
+})();
+</script>
+</body>
+</html>

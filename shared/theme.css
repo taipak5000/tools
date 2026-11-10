@@ -1,0 +1,56 @@
+/*
+ * ツール共通の配色（iOS風）。各ツールの style の「後ろ」で読み込み、
+ * それぞれのツールが使っている変数名を同じ色に上書きする。
+ * レイアウトや機能には触れない。
+ */
+html:root {
+  /* 背景・面 */
+  --bg: #f2f2f7;
+  --surface: #ffffff; --panel: #ffffff; --bg-elevated: #ffffff;
+  --soft: #f2f2f7;
+  /* 文字 */
+  --ink: #000000; --text: #000000;
+  --muted: #6c6c70; --text-muted: #6c6c70;
+  /* 線 */
+  --line: #d1d1d6; --border: #d1d1d6;
+  /* アクセント */
+  --accent: #007aff; --accent-ink: #ffffff; --accent-dark: #0062cc; --accent-soft: rgba(0, 122, 255, 0.12);
+  --primary: #007aff; --primary-dark: #0062cc; --primary-fg: #ffffff;
+  --danger: #ff3b30;
+  --shadow: none;
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", Roboto, sans-serif;
+  --font-ui: var(--font);
+  --font-display: var(--font);
+}
+html:root body { font-family: var(--font); }
+
+@media (prefers-color-scheme: dark) {
+  html:root:not([data-theme="light"]) {
+    --bg: #000000;
+    --surface: #1c1c1e; --panel: #1c1c1e; --bg-elevated: #1c1c1e;
+    --soft: #2c2c2e;
+    --ink: #ffffff; --text: #ffffff;
+    --muted: #98989f; --text-muted: #98989f;
+    --line: #38383a; --border: #38383a;
+    --accent: #0a84ff; --accent-ink: #ffffff; --accent-dark: #0071e3; --accent-soft: rgba(10, 132, 255, 0.22);
+    --primary: #0a84ff; --primary-dark: #0071e3; --primary-fg: #ffffff;
+    --danger: #ff453a;
+  }
+}
+html:root[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #1c1c1e; --panel: #1c1c1e; --bg-elevated: #1c1c1e;
+  --soft: #2c2c2e;
+  --ink: #ffffff; --text: #ffffff;
+  --muted: #98989f; --text-muted: #98989f;
+  --line: #38383a; --border: #38383a;
+  --accent: #0a84ff; --accent-ink: #ffffff; --accent-dark: #0071e3; --accent-soft: rgba(10, 132, 255, 0.22);
+  --primary: #0a84ff; --primary-dark: #0071e3; --primary-fg: #ffffff;
+  --danger: #ff453a;
+}
+
+/* ファイル変換ページの中で開いたときは、各ツールの大きな見出しを隠す（上のタブに名前が出るため） */
+html.in-files .site-header,
+html.in-files header.top,
+html.in-files header.topbar { display: none; }

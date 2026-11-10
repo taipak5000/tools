@@ -104,6 +104,10 @@ a { color: inherit; text-decoration: none; }
 #tabbar button span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
 #tabbar button[aria-current="page"] { color: var(--accent); font-weight: 600; }
 
+/* ツールが自前の下部タブバーを持つときは、ハブの下部バーを隠して2段にしない */
+body.own-bar #tabbar { display: none; }
+body.own-bar #stage { bottom: 0; }
+
 /* ---- 「すべて」シート ---- */
 #sheet-backdrop {
   position: fixed; inset: 0; z-index: 20; background: rgba(0,0,0,0.35);
@@ -179,10 +183,10 @@ body.sheet-open #sheet { transform: none; }
     { id: 'sitememo', name: 'サイトメモ', short: 'メモ', desc: 'サイトとメモをタグで管理', group: '記録・管理', emoji: '🔖' },
     { id: 'teiki-oshirase', name: '配布タイマー', short: 'タイマー', desc: '配布の時刻をチャイムと通知で知らせる', group: '記録・管理', emoji: '⏰' },
     { id: 'otoku-checker', name: 'おとくチェック', short: 'おとく', desc: '単価を比べてどちらがお得か判定', group: '計算', icon: 'otoku-checker/icons/icon-192.png', emoji: '🛒' },
-    { id: 'pdf-merge', name: 'PDF結合', short: 'PDF', desc: '複数のPDFを印刷用に1つにまとめる', group: 'ファイル・画像', emoji: '📄' },
-    { id: 'upscale-site', name: '画像サイズ拡大', short: '画像拡大', desc: '倍率・ピクセル・印刷サイズで拡大', group: 'ファイル・画像', icon: 'upscale-site/icon.svg', emoji: '🖼️' },
-    { id: 'png', name: 'PNG ZIP Renamer', short: 'PNG', desc: '画像をPNGに変換し、連番名でZIP保存', group: 'ファイル・画像', emoji: '🗜️' }
+    { id: 'files', name: 'ファイル変換', short: 'ファイル', desc: 'PDF結合・画像サイズ拡大・PNG変換', group: 'ファイル', emoji: '🗂️' }
   ];
+  // 以前のURL（#/pdf-merge など）で開いても、まとめたページの該当タブに移す
+  var ALIAS = { 'pdf-merge': 'files/pdf', 'upscale-site': 'files/upscale', 'png': 'files/png' };
   var byId = {};
   TOOLS.forEach(function (t) { byId[t.id] = t; });
   var HOME = { id: '', name: 'ホーム', short: 'ホーム', emoji: '🏠' };
@@ -264,22 +268,38 @@ body.sheet-open #sheet { transform: none; }
     });
   }
 
-  function current() { return location.hash.replace(/^#\/?/, '').split('/')[0]; }
+  function route() { return location.hash.replace(/^#\/?/, ''); }
+  function current() { return route().split('/')[0]; }
+  function sub() { return route().split('/').slice(1).join('/'); }
+  var mq = window.matchMedia('(max-width: 767px)');
+  function tellMode(f) {
+    try { f.contentWindow.postMessage({ type: 'hub:mode', mobile: mq.matches }, location.origin); } catch (e) {}
+  }
+  function updateOwnBar() {
+    var id = current();
+    document.body.classList.toggle('own-bar', !!(frames[id] && frames[id].dataset.ownBar));
+  }
 
   function show() {
+    if (ALIAS[current()]) { location.replace('#/' + ALIAS[current()]); return; }
     var id = current();
     if (id && !byId[id]) id = '';
     home.hidden = !!id;
     Object.keys(frames).forEach(function (k) { frames[k].hidden = k !== id; });
     if (id && !frames[id]) {
       var f = document.createElement('iframe');
-      f.src = id + '/';
+      f.src = id + '/' + (sub() ? '#' + sub() : '');
       f.title = byId[id].name;
+      f.addEventListener('load', function () { tellMode(f); });
       f.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
       stage.appendChild(f);
       frames[id] = f;
     }
+    else if (id && sub()) {
+      try { frames[id].contentWindow.location.hash = sub(); } catch (e) {}
+    }
     document.title = id ? byId[id].name + ' - ツール' : 'ツール';
+    updateOwnBar();
     markCurrent();
   }
 
@@ -330,6 +350,19 @@ body.sheet-open #sheet { transform: none; }
     document.getElementById('sheet').addEventListener(ev, function () { clearTimeout(pressTimer); });
   });
   document.getElementById('sheet').addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  // ツール側からの連絡（自前の下部タブバーがある／メニューを開きたい）
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data) return;
+    var from = Object.keys(frames).filter(function (k) { return frames[k].contentWindow === e.source; })[0];
+    if (e.data.type === 'hub:own-bar' && from) {
+      frames[from].dataset.ownBar = '1';
+      tellMode(frames[from]);
+      updateOwnBar();
+    }
+    if (e.data.type === 'hub:open-menu') document.body.classList.add('sheet-open');
+  });
+  mq.addEventListener('change', function () { Object.keys(frames).forEach(function (k) { tellMode(frames[k]); }); });
 
   window.addEventListener('hashchange', show);
   render();
