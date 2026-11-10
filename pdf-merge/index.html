@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF結合 — 印刷用にまとめる</title>
+  <meta name="description" content="複数のPDFを1つにまとめます。ファイルはブラウザの外へ送信されません。A4への統一や両面印刷用の白紙挿入に対応。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <h1>PDF結合</h1>
+    <p class="lead">複数のPDFを1つにまとめて、まとめて印刷。ファイルはこのブラウザの中だけで処理され、外部へは送信されません。</p>
+  </header>
+
+  <main>
+    <section id="dropzone" class="dropzone" aria-labelledby="dz-title">
+      <p id="dz-title" class="dz-title">PDFをここにドラッグ＆ドロップ</p>
+      <p class="dz-sub">またはボタンで選択（複数選択できます）</p>
+      <label class="btn btn-primary">
+        ファイルを選ぶ
+        <input id="file-input" type="file" accept="application/pdf,.pdf" multiple hidden>
+      </label>
+    </section>
+
+    <section id="list-section" class="panel" hidden aria-labelledby="list-title">
+      <div class="panel-head">
+        <h2 id="list-title">結合する順番</h2>
+        <div class="panel-actions">
+          <button id="sort-btn" class="btn btn-quiet" type="button">名前順に並べる</button>
+          <button id="clear-btn" class="btn btn-quiet" type="button">すべて外す</button>
+        </div>
+      </div>
+      <p class="hint">行をドラッグするか、↑↓ボタンで並べ替えます。ページ範囲は空欄なら全ページ、「1-3,5,8-」のように指定できます。</p>
+      <ol id="file-list" class="file-list"></ol>
+      <p id="summary" class="summary" aria-live="polite"></p>
+    </section>
+
+    <section id="options-section" class="panel" hidden aria-labelledby="opt-title">
+      <h2 id="opt-title">印刷向けオプション</h2>
+      <label class="check">
+        <input id="opt-a4" type="checkbox">
+        <span><strong>全ページをA4に揃える</strong><small>サイズがばらばらでも、縦横の向きはそのままで用紙1枚に収まるよう拡大・縮小します。</small></span>
+      </label>
+      <label class="check">
+        <input id="opt-duplex" type="checkbox">
+        <span><strong>両面印刷用に白紙を足す</strong><small>ページ数が奇数のファイルの後ろに白紙を1枚入れ、次のファイルが必ず表面から始まるようにします。</small></span>
+      </label>
+      <div class="name-row">
+        <label for="out-name">保存するファイル名</label>
+        <input id="out-name" type="text" value="結合PDF" autocomplete="off">
+        <span>.pdf</span>
+      </div>
+      <button id="merge-btn" class="btn btn-primary btn-large" type="button">1つのPDFにまとめる</button>
+    </section>
+
+    <section id="result" class="panel result" hidden aria-live="polite">
+      <h2>できました</h2>
+      <p id="result-info"></p>
+      <div class="result-actions">
+        <a id="download-link" class="btn btn-primary" href="#" download>ダウンロード</a>
+        <a id="open-link" class="btn" href="#" target="_blank" rel="noopener">開いて印刷する</a>
+      </div>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </main>
+
+  <footer class="site-footer">
+    <p>PDFの処理には <a href="https://pdf-lib.js.org/" target="_blank" rel="noopener">pdf-lib</a>（MIT License）を使っています。パスワード付きのPDFは読み込めません。</p>
+  </footer>
+
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script src="merge.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

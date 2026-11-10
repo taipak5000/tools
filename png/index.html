@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PNG ZIP Renamer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --ink: #1e293b;
+      --muted: #667085;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --accent: #146c94;
+      --accent-dark: #0e5574;
+      --accent-soft: #e7f5fa;
+      --ok: #1f7a4d;
+      --warn: #9a4f00;
+      --danger: #b42318;
+      --shadow: 0 16px 42px rgba(20, 37, 62, .08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #edf5f8 0, transparent 270px),
+        var(--bg);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .5;
+    }
+
+    .app {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: #172554;
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 2vw, 2rem);
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: .94rem;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(280px, 360px) 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .controls {
+      position: sticky;
+      top: 18px;
+      padding: 18px;
+    }
+
+    .section-title {
+      margin: 0 0 12px;
+      font-size: .94rem;
+      font-weight: 800;
+    }
+
+    .dropzone {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 186px;
+      padding: 18px;
+      border: 2px dashed #9ab6c6;
+      border-radius: 8px;
+      background: #f8fcfd;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+
+    .dropzone.is-over {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      transform: translateY(-1px);
+    }
+
+    .dropzone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .drop-content {
+      pointer-events: none;
+      text-align: center;
+      display: grid;
+      justify-items: center;
+      gap: 10px;
+    }
+
+    .drop-icon {
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      background: #d8eef5;
+      color: var(--accent-dark);
+      font-size: 1.8rem;
+    }
+
+    .drop-main {
+      font-weight: 800;
+    }
+
+    .drop-sub {
+      color: var(--muted);
+      font-size: .88rem;
+      line-height: 1.45;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      color: #475467;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 11px;
+      color: var(--ink);
+      background: #fff;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(20, 108, 148, .15);
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 44px;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn.primary:hover:not(:disabled) {
+      background: var(--accent-dark);
+    }
+
+    .btn.ghost {
+      background: #eef2f6;
+      color: #344054;
+    }
+
+    .btn.ghost:hover:not(:disabled) {
+      background: #e3e9f0;
+    }
+
+    .status {
+      min-height: 21px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.45;
+    }
+
+    .status.ok {
+      color: var(--ok);
+    }
+
+    .status.warn {
+      color: var(--warn);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .workspace {
+      min-height: 560px;
+      overflow: hidden;
+    }
+
+    .workspace-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: .9rem;
+      white-space: nowrap;
+    }
+
+    .list {
+      display: grid;
+      gap: 0;
+    }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 430px;
+      color: #667085;
+      text-align: center;
+      padding: 28px;
+    }
+
+    .empty-inner {
+      display: grid;
+      gap: 8px;
+      max-width: 380px;
+    }
+
+    .empty-title {
+      color: #344054;
+      font-weight: 800;
+      font-size: 1rem;
+    }
+
+    .file-row {
+      display: grid;
+      grid-template-columns: 72px minmax(150px, 1fr) minmax(160px, 260px) 44px;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 18px;
+      border-bottom: 1px solid #edf0f4;
+    }
+
+    .thumb {
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #f2f4f7;
+      object-fit: contain;
+    }
+
+    .file-meta {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .original {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 750;
+    }
+
+    .details {
+      color: var(--muted);
+      font-size: .84rem;
+    }
+
+    .new-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--accent-dark);
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      background: #f2f4f7;
+      color: #475467;
+      font-size: 1.16rem;
+    }
+
+    .icon-btn:hover {
+      background: #fee4e2;
+      color: var(--danger);
+    }
+
+    .progress {
+      display: none;
+      width: 100%;
+      height: 8px;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e4e7ec;
+    }
+
+    .progress.is-active {
+      display: block;
+    }
+
+    .bar {
+      width: 0%;
+      height: 100%;
+      background: var(--accent);
+      transition: width .18s ease;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        width: min(100% - 22px, 720px);
+        padding-top: 18px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        position: static;
+      }
+
+      .file-row {
+        grid-template-columns: 62px minmax(0, 1fr) 40px;
+        gap: 10px;
+        padding: 11px 12px;
+      }
+
+      .thumb {
+        width: 62px;
+        height: 62px;
+      }
+
+      .new-name {
+        grid-column: 2 / 3;
+        text-align: left;
+        font-size: .88rem;
+      }
+
+      .icon-btn {
+        grid-column: 3;
+        grid-row: 1 / span 2;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .topbar {
+        display: grid;
+      }
+
+      .brand {
+        align-items: flex-start;
+      }
+
+      .mark {
+        width: 38px;
+        height: 38px;
+      }
+
+      .subtitle {
+        font-size: .86rem;
+      }
+
+      .field-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .count {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">PNG</div>
+        <div>
+          <h1>PNG ZIP Renamer</h1>
+          <p class="subtitle">画像をPNGへ変換し、連番名でZIP保存</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="panel controls" aria-label="変換設定">
+        <h2 class="section-title">画像を選択</h2>
+        <label class="dropzone" id="dropzone">
+          <input id="fileInput" type="file" accept="image/*" multiple>
+          <span class="drop-content">
+            <span class="drop-icon" aria-hidden="true">+</span>
+            <span class="drop-main">クリックまたはドラッグ</span>
+            <span class="drop-sub">JPG、WEBP、GIFなどブラウザで開ける画像</span>
+          </span>
+        </label>
+
+        <div class="field-grid">
+          <div class="field full">
+            <label for="prefix">ファイル名</label>
+            <input id="prefix" type="text" value="cape_" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="startNumber">開始番号</label>
+            <input id="startNumber" type="number" min="0" step="1" value="1">
+          </div>
+          <div class="field">
+            <label for="digits">桁数</label>
+            <input id="digits" type="number" min="1" max="12" step="1" value="3">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn primary" id="downloadZip" type="button" disabled>
+            <span aria-hidden="true">↓</span>
+            <span>PNGをZIPで保存</span>
+          </button>
+          <button class="btn ghost" id="clearAll" type="button" disabled>
+            <span aria-hidden="true">×</span>
+            <span>クリア</span>
+          </button>
+        </div>
+
+        <div class="progress" id="progress" aria-hidden="true">
+          <div class="bar" id="bar"></div>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+      </aside>
+
+      <section class="panel workspace" aria-label="ファイル一覧">
+        <div class="workspace-head">
+          <h2 class="section-title">変換リスト</h2>
+          <div class="count" id="count">0件</div>
+        </div>
+        <div class="empty" id="empty">
+          <div class="empty-inner">
+            <div class="empty-title">まだ画像がありません</div>
+            <div>選択した順番で cape_001.png から名前を付けます。</div>
+          </div>
+        </div>
+        <div class="list" id="list"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const state = {
+      items: []
+    };
+
+    const els = {
+      fileInput: document.getElementById('fileInput'),
+      dropzone: document.getElementById('dropzone'),
+      prefix: document.getElementById('prefix'),
+      startNumber: document.getElementById('startNumber'),
+      digits: document.getElementById('digits'),
+      downloadZip: document.getElementById('downloadZip'),
+      clearAll: document.getElementById('clearAll'),
+      status: document.getElementById('status'),
+      list: document.getElementById('list'),
+      empty: document.getElementById('empty'),
+      count: document.getElementById('count'),
+      progress: document.getElementById('progress'),
+      bar: document.getElementById('bar')
+    };
+
+    function setStatus(message, type = '') {
+      els.status.textContent = message;
+      els.status.className = type ? `status ${type}` : 'status';
+    }
+
+    function setProgress(percent, active) {
+      els.progress.classList.toggle('is-active', active);
+      els.bar.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+    }
+
+    function sanitizePrefix(value) {
+      return (value || 'cape_')
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .replace(/\s+/g, '_');
+    }
+
+    function getSettings() {
+      return {
+        prefix: sanitizePrefix(els.prefix.value),
+        start: Math.max(0, Number.parseInt(els.startNumber.value, 10) || 0),
+        digits: Math.min(12, Math.max(1, Number.parseInt(els.digits.value, 10) || 3))
+      };
+    }
+
+    function filenameFor(index) {
+      const settings = getSettings();
+      const number = String(settings.start + index).padStart(settings.digits, '0');
+      return `${settings.prefix}${number}.png`;
+    }
+
+    function readableSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    function render() {
+      els.list.innerHTML = '';
+      els.empty.style.display = state.items.length ? 'none' : 'grid';
+      els.count.textContent = `${state.items.length}件`;
+      els.downloadZip.disabled = state.items.length === 0;
+      els.clearAll.disabled = state.items.length === 0;
+
+      const fragment = document.createDocumentFragment();
+      state.items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'file-row';
+
+        const thumb = document.createElement('img');
+        thumb.className = 'thumb';
+        thumb.src = item.url;
+        thumb.alt = '';
+
+        const meta = document.createElement('div');
+        meta.className = 'file-meta';
+
+        const original = document.createElement('div');
+        original.className = 'original';
+        original.textContent = item.file.name;
+        original.title = item.file.name;
+
+        const details = document.createElement('div');
+        details.className = 'details';
+        details.textContent = `${item.file.type || 'image'} / ${readableSize(item.file.size)}`;
+
+        meta.append(original, details);
+
+        const newName = document.createElement('div');
+        newName.className = 'new-name';
+        newName.textContent = filenameFor(index);
+        newName.title = filenameFor(index);
+
+        const remove = document.createElement('button');
+        remove.className = 'icon-btn';
+        remove.type = 'button';
+        remove.title = '削除';
+        remove.setAttribute('aria-label', `${item.file.name}を削除`);
+        remove.textContent = '×';
+        remove.addEventListener('click', () => removeItem(item.id));
+
+        row.append(thumb, meta, newName, remove);
+        fragment.append(row);
+      });
+      els.list.append(fragment);
+    }
+
+    function addFiles(files) {
+      const accepted = Array.from(files).filter(file => file.type.startsWith('image/'));
+      if (!accepted.length) {
+        setStatus('画像ファイルを選択してください。', 'warn');
+        return;
+      }
+
+      accepted.forEach(file => {
+        state.items.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+          file,
+          url: URL.createObjectURL(file)
+        });
+      });
+
+      setStatus(`${accepted.length}件を追加しました。`, 'ok');
+      render();
+      els.fileInput.value = '';
+    }
+
+    function removeItem(id) {
+      const index = state.items.findIndex(item => item.id === id);
+      if (index === -1) return;
+      URL.revokeObjectURL(state.items[index].url);
+      state.items.splice(index, 1);
+      setStatus(state.items.length ? 'リストを更新しました。' : '');
+      render();
+    }
+
+    function clearAll() {
+      state.items.forEach(item => URL.revokeObjectURL(item.url));
+      state.items = [];
+      setStatus('');
+      setProgress(0, false);
+      render();
+    }
+
+    async function fileToPngBlob(file) {
+      const objectUrl = URL.createObjectURL(file);
+      try {
+        const image = await loadImage(objectUrl);
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth || image.width;
+        canvas.height = image.naturalHeight || image.height;
+
+        if (!canvas.width || !canvas.height) {
+          throw new Error('画像サイズを取得できませんでした');
+        }
+
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0);
+
+        return await new Promise((resolve, reject) => {
+          canvas.toBlob(blob => {
+            if (blob) resolve(blob);
+            else reject(new Error('PNG変換に失敗しました'));
+          }, 'image/png');
+        });
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error('画像を読み込めませんでした'));
+        image.src = src;
+      });
+    }
+
+    function makeCrcTable() {
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i += 1) {
+        let c = i;
+        for (let k = 0; k < 8; k += 1) {
+          c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        }
+        table[i] = c >>> 0;
+      }
+      return table;
+    }
+
+    const crcTable = makeCrcTable();
+
+    function crc32(bytes) {
+      let crc = 0xffffffff;
+      for (let i = 0; i < bytes.length; i += 1) {
+        crc = crcTable[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8);
+      }
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+
+    function dosDateTime(date = new Date()) {
+      const year = Math.max(1980, date.getFullYear());
+      const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+      const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+      return { dosDate, dosTime };
+    }
+
+    function writeUint16(view, offset, value) {
+      view.setUint16(offset, value, true);
+    }
+
+    function writeUint32(view, offset, value) {
+      view.setUint32(offset, value, true);
+    }
+
+    function createZip(entries) {
+      const encoder = new TextEncoder();
+      const parts = [];
+      const central = [];
+      let offset = 0;
+      const { dosDate, dosTime } = dosDateTime();
+
+      entries.forEach(entry => {
+        const nameBytes = encoder.encode(entry.name);
+        const data = entry.data;
+        const crc = crc32(data);
+
+        const local = new Uint8Array(30 + nameBytes.length);
+        const localView = new DataView(local.buffer);
+        writeUint32(localView, 0, 0x04034b50);
+        writeUint16(localView, 4, 20);
+        writeUint16(localView, 6, 0x0800);
+        writeUint16(localView, 8, 0);
+        writeUint16(localView, 10, dosTime);
+        writeUint16(localView, 12, dosDate);
+        writeUint32(localView, 14, crc);
+        writeUint32(localView, 18, data.length);
+        writeUint32(localView, 22, data.length);
+        writeUint16(localView, 26, nameBytes.length);
+        writeUint16(localView, 28, 0);
+        local.set(nameBytes, 30);
+
+        parts.push(local, data);
+
+        const centralHeader = new Uint8Array(46 + nameBytes.length);
+        const centralView = new DataView(centralHeader.buffer);
+        writeUint32(centralView, 0, 0x02014b50);
+        writeUint16(centralView, 4, 20);
+        writeUint16(centralView, 6, 20);
+        writeUint16(centralView, 8, 0x0800);
+        writeUint16(centralView, 10, 0);
+        writeUint16(centralView, 12, dosTime);
+        writeUint16(centralView, 14, dosDate);
+        writeUint32(centralView, 16, crc);
+        writeUint32(centralView, 20, data.length);
+        writeUint32(centralView, 24, data.length);
+        writeUint16(centralView, 28, nameBytes.length);
+        writeUint16(centralView, 30, 0);
+        writeUint16(centralView, 32, 0);
+        writeUint16(centralView, 34, 0);
+        writeUint16(centralView, 36, 0);
+        writeUint32(centralView, 38, 0);
+        writeUint32(centralView, 42, offset);
+        centralHeader.set(nameBytes, 46);
+        central.push(centralHeader);
+
+        offset += local.length + data.length;
+      });
+
+      const centralOffset = offset;
+      let centralSize = 0;
+      central.forEach(header => {
+        centralSize += header.length;
+        parts.push(header);
+      });
+
+      const end = new Uint8Array(22);
+      const endView = new DataView(end.buffer);
+      writeUint32(endView, 0, 0x06054b50);
+      writeUint16(endView, 4, 0);
+      writeUint16(endView, 6, 0);
+      writeUint16(endView, 8, entries.length);
+      writeUint16(endView, 10, entries.length);
+      writeUint32(endView, 12, centralSize);
+      writeUint32(endView, 16, centralOffset);
+      writeUint16(endView, 20, 0);
+      parts.push(end);
+
+      return new Blob(parts, { type: 'application/zip' });
+    }
+
+    async function downloadZip() {
+      if (!state.items.length) return;
+
+      els.downloadZip.disabled = true;
+      els.clearAll.disabled = true;
+      setProgress(0, true);
+      setStatus('PNGへ変換しています...');
+
+      try {
+        const entries = [];
+        for (let index = 0; index < state.items.length; index += 1) {
+          const item = state.items[index];
+          const blob = await fileToPngBlob(item.file);
+          const data = new Uint8Array(await blob.arrayBuffer());
+          entries.push({ name: filenameFor(index), data });
+          setProgress(((index + 1) / state.items.length) * 82, true);
+        }
+
+        setStatus('ZIPファイルを作成しています...');
+        const zip = createZip(entries);
+        setProgress(96, true);
+
+        const zipUrl = URL.createObjectURL(zip);
+        const link = document.createElement('a');
+        link.href = zipUrl;
+        link.download = 'png_images.zip';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(zipUrl), 1000);
+        setProgress(100, true);
+        setStatus(`${entries.length}件をZIPで保存しました。`, 'ok');
+      } catch (error) {
+        setStatus(error.message || '変換中にエラーが発生しました。', 'error');
+      } finally {
+        setTimeout(() => setProgress(0, false), 900);
+        els.downloadZip.disabled = state.items.length === 0;
+        els.clearAll.disabled = state.items.length === 0;
+      }
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      els.dropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        els.dropzone.classList.add('is-over');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      els.dropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        els.dropzone.classList.remove('is-over');
+      });
+    });
+
+    els.dropzone.addEventListener('drop', event => {
+      addFiles(event.dataTransfer.files);
+    });
+
+    els.fileInput.addEventListener('change', event => {
+      addFiles(event.target.files);
+    });
+
+    [els.prefix, els.startNumber, els.digits].forEach(input => {
+      input.addEventListener('input', render);
+    });
+
+    els.downloadZip.addEventListener('click', downloadZip);
+    els.clearAll.addEventListener('click', clearAll);
+
+    render();
+  </script>
+</body>
+</html>
