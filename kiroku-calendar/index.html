@@ -88,16 +88,16 @@
   .salary-row { font-size:13px; color:var(--text-muted); display:flex; align-items:center; gap:6px; }
 
   .calendar-weekdays { display:grid; grid-template-columns: repeat(7,1fr); text-align:center; font-size:12px; color:var(--text-muted); padding:0 4px; margin-bottom:4px; }
-  .calendar-grid { display:grid; grid-template-columns: repeat(7,1fr); gap:4px; padding:0 4px; }
+  .calendar-grid { display:grid; grid-template-columns: repeat(7,1fr); gap:0; padding:0 4px; border-bottom:1px solid var(--border); }
   .day-cell {
-    aspect-ratio: 1 / 1; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm);
-    padding:4px 0; display:flex; flex-direction:column; align-items:center; cursor:pointer; position:relative; min-height:44px;
+    aspect-ratio: 1 / 1.1; background:transparent; border:none; border-top:1px solid var(--border); border-radius:0;
+    padding:4px 0 6px; display:flex; flex-direction:column; align-items:center; cursor:pointer; position:relative; min-height:44px;
   }
-  .day-cell:hover { background: rgba(118,118,128,.12); }
-  .day-cell.empty-cell { background:transparent; border:none; cursor:default; }
+  .day-cell:hover { background: rgba(118,118,128,.08); }
+  .day-cell.empty-cell { background:transparent; cursor:default; }
   .day-cell.today .day-number { background: var(--primary); color: var(--primary-fg); font-weight:600; }
   .day-number { font-size:15px; color: var(--text); font-variant-numeric: tabular-nums; width:28px; height:28px; line-height:28px; text-align:center; border-radius:50%; }
-  .day-dots { margin-top:auto; display:flex; gap:2px; flex-wrap:wrap; justify-content:center; }
+  .day-dots { margin-top:4px; display:flex; gap:3px; flex-wrap:wrap; justify-content:center; }
   .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
   .dot-med-taken { background: var(--med-taken); }
   .dot-med-skipped { background: var(--med-skipped); }

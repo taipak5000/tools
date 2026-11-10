@@ -6,6 +6,18 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-title" content="ツール">
+<link rel="apple-touch-icon" id="touch-icon" href="icons/grid-blue-180.png">
+<link rel="icon" id="fav-icon" href="icons/grid-blue-180.png">
+<link rel="manifest" id="manifest-link" href="manifest.webmanifest">
+<script>
+// 選んだホーム画面アイコンを、ページを読み込んだ直後に反映する
+(function () {
+  var id = 'grid-blue';
+  try { id = localStorage.getItem('tools-hub:icon') || id; } catch (e) {}
+  window.__hubIcon = id;
+})();
+</script>
 <title>ツール</title>
 <style>
 :root {
@@ -114,6 +126,20 @@ body.sheet-open #sheet { transform: none; }
 #sheet .grid button .icon { width: 40px; height: 40px; border-radius: 9px; font-size: 22px; }
 #sheet .grid button[aria-current="page"] { outline: 2px solid var(--accent); }
 #sheet .hint { font-size: 12px; color: var(--sub); margin: 16px 8px 0; }
+.icon-open { display: block; margin: 16px 8px 0; color: var(--accent); font-size: 15px; }
+
+/* ---- ホーム画面アイコンの選択 ---- */
+#icon-dialog { border: none; border-radius: 14px; padding: 0; width: min(420px, calc(100% - 32px)); background: var(--bg); color: var(--label); }
+#icon-dialog::backdrop { background: rgba(0,0,0,0.35); }
+#icon-dialog header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
+#icon-dialog h2 { font-size: 17px; margin: 0; }
+#icon-dialog .done { color: var(--accent); font-size: 17px; font-weight: 600; }
+#icon-dialog .note { font-size: 13px; color: var(--sub); margin: 0 16px 12px; }
+.icon-choices { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 0 16px 18px; }
+.icon-choices button { aspect-ratio: 1; border-radius: 22%; overflow: hidden; outline-offset: 3px; }
+.icon-choices button img { width: 100%; height: 100%; display: block; }
+.icon-choices button[aria-pressed="true"] { outline: 3px solid var(--accent); }
+.icon-choices button:not([aria-pressed="true"]) img { box-shadow: inset 0 0 0 0.5px var(--sep); }
 
 /* ---- パソコン・タブレット：サイドバー ---- */
 #sidebar { display: none; }
@@ -134,6 +160,7 @@ body.sheet-open #sheet { transform: none; }
     padding: 7px 10px; border-radius: 8px; font-size: 15px; text-align: left;
   }
   #sidebar button:hover { background: var(--sep); }
+  #sidebar .icon-open { margin-top: auto; padding: 7px 10px; font-size: 13px; }
   #sidebar button[aria-current="page"] { background: var(--active-bg); color: var(--accent); font-weight: 600; }
 }
 </style>
@@ -141,6 +168,12 @@ body.sheet-open #sheet { transform: none; }
 <body>
 
 <nav id="sidebar" aria-label="ツール"></nav>
+
+<dialog id="icon-dialog" aria-labelledby="icon-dialog-title">
+  <header><h2 id="icon-dialog-title">ホーム画面のアイコン</h2><button class="done" type="button" data-icon-close>完了</button></header>
+  <p class="note">選んでから「ホーム画面に追加」すると、このアイコンになります。追加済みのアイコンは、一度削除して追加し直すと変わります。</p>
+  <div class="icon-choices" id="icon-choices"></div>
+</dialog>
 
 <main id="stage">
 </main>
@@ -151,6 +184,7 @@ body.sheet-open #sheet { transform: none; }
   <div class="grip"></div>
   <div id="sheet-list"></div>
   <p class="hint">ここでツールを長押しすると、下のバーに出す4つを入れ替えられます。</p>
+  <button class="icon-open" type="button" data-icon-open>ホーム画面のアイコンを変える</button>
 </div>
 
 <script>
@@ -204,6 +238,7 @@ body.sheet-open #sheet { transform: none; }
       s += '<h2>' + g.name + '</h2>';
       g.items.forEach(function (t) { s += '<button data-go="' + t.id + '">' + iconHtml(t) + '<span>' + t.name + '</span></button>'; });
     });
+    s += '<button class="icon-open" type="button" data-icon-open>ホーム画面のアイコン</button>';
     document.getElementById('sidebar').innerHTML = s;
 
     // 「すべて」シート
@@ -336,6 +371,58 @@ body.sheet-open #sheet { transform: none; }
     if (e.data.type === 'hub:open-menu') document.body.classList.add('sheet-open');
   });
   mq.addEventListener('change', function () { Object.keys(frames).forEach(function (k) { tellMode(frames[k]); }); });
+
+  // ---- ホーム画面アイコン ----
+  var ICONS = [
+    { id: 'grid-blue', label: '青' }, { id: 'grid-black', label: '黒' }, { id: 'grid-white', label: '白' },
+    { id: 'grid-green', label: '緑' }, { id: 'dots-orange', label: 'オレンジ' }, { id: 'stack-indigo', label: '紫' },
+    { id: 'kiroku', label: 'きろくカレンダー', src: 'kiroku-calendar/icons/apple-touch-icon.png', big: 'kiroku-calendar/icons/icon-512.png' },
+    { id: 'okozukai', label: 'お小遣い帳', src: 'okozukai/icons/apple-touch-icon.png', big: 'okozukai/icons/icon-512.png' },
+    { id: 'meibo', label: '名簿', src: 'meibo/icons/apple-touch-icon.png', big: 'meibo/icons/icon-512.png' },
+    { id: 'otoku', label: 'おとくチェック', src: 'otoku-checker/icons/icon-180.png', big: 'otoku-checker/icons/icon-512.png' }
+  ];
+  function iconSrc(ic, big) {
+    if (ic.src) return big ? ic.big : ic.src;
+    return 'icons/' + ic.id + (big ? '-512.png' : '-180.png');
+  }
+  var manifestUrl = null;
+  function applyIcon(id) {
+    var ic = ICONS.filter(function (x) { return x.id === id; })[0] || ICONS[0];
+    document.getElementById('touch-icon').href = iconSrc(ic);
+    document.getElementById('fav-icon').href = iconSrc(ic);
+    // Android 用：選んだアイコン入りのマニフェストをその場で作る
+    var base = location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, '');
+    var manifest = {
+      name: 'ツール', short_name: 'ツール', start_url: base, scope: base, display: 'standalone',
+      background_color: '#F2F2F7', theme_color: '#F2F2F7',
+      icons: [
+        { src: base + iconSrc(ic), sizes: '180x180', type: 'image/png' },
+        { src: base + iconSrc(ic, true), sizes: '512x512', type: 'image/png' }
+      ]
+    };
+    if (manifestUrl) URL.revokeObjectURL(manifestUrl);
+    manifestUrl = URL.createObjectURL(new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }));
+    document.getElementById('manifest-link').href = manifestUrl;
+    Array.prototype.forEach.call(document.querySelectorAll('#icon-choices button'), function (b) {
+      b.setAttribute('aria-pressed', b.dataset.icon === ic.id ? 'true' : 'false');
+    });
+  }
+  document.getElementById('icon-choices').innerHTML = ICONS.map(function (ic) {
+    return '<button type="button" data-icon="' + ic.id + '" aria-label="' + ic.label + '"><img src="' + iconSrc(ic) + '" alt=""></button>';
+  }).join('');
+  document.getElementById('icon-choices').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-icon]');
+    if (!b) return;
+    try { localStorage.setItem('tools-hub:icon', b.dataset.icon); } catch (err) {}
+    applyIcon(b.dataset.icon);
+  });
+  var dlg = document.getElementById('icon-dialog');
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-icon-open]')) { closeSheet(); dlg.showModal(); }
+    if (e.target.closest('[data-icon-close]')) dlg.close();
+  });
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+  applyIcon(window.__hubIcon);
 
   window.addEventListener('hashchange', show);
   render();

@@ -1,0 +1,13 @@
+{
+  "name": "ツール",
+  "short_name": "ツール",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
+  "icons": [
+    { "src": "icons/grid-blue-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/grid-blue-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
