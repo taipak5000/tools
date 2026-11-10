@@ -66,25 +66,6 @@ a { color: inherit; text-decoration: none; }
 }
 #stage iframe[hidden] { display: none; }
 
-/* ---- ホーム（一覧） ---- */
-#home {
-  position: absolute; inset: 0; overflow-y: auto;
-  padding: calc(20px + env(safe-area-inset-top)) 16px 24px;
-}
-#home[hidden] { display: none; }
-#home .inner { max-width: 640px; margin: 0 auto; }
-#home h1 { font-size: 30px; margin: 8px 4px 16px; }
-#home h2 { font-size: 13px; font-weight: 400; color: var(--sub); margin: 20px 16px 6px; }
-#home ul { list-style: none; margin: 0; padding: 0; background: var(--card); border-radius: 12px; overflow: hidden; }
-#home li + li a { border-top: 0.5px solid var(--sep); }
-#home a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
-#home a:active { background: var(--sep); }
-#home .icon { width: 40px; height: 40px; border-radius: 9px; font-size: 22px; }
-#home .name { display: block; font-size: 17px; }
-#home .desc { display: block; font-size: 13px; color: var(--sub); }
-#home .text { flex: 1; min-width: 0; }
-#home .chev { color: var(--sub); font-size: 20px; }
-
 /* ---- スマホ：下部タブバー ---- */
 #tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
@@ -162,7 +143,6 @@ body.sheet-open #sheet { transform: none; }
 <nav id="sidebar" aria-label="ツール"></nav>
 
 <main id="stage">
-  <section id="home"><div class="inner"><h1>ツール一覧</h1><div id="home-list"></div></div></section>
 </main>
 
 <nav id="tabbar" aria-label="よく使うツール"></nav>
@@ -170,7 +150,7 @@ body.sheet-open #sheet { transform: none; }
 <div id="sheet" role="dialog" aria-label="すべてのツール">
   <div class="grip"></div>
   <div id="sheet-list"></div>
-  <p class="hint">ここでツールを長押しすると、下のバーに出す3つを入れ替えられます。</p>
+  <p class="hint">ここでツールを長押しすると、下のバーに出す4つを入れ替えられます。</p>
 </div>
 
 <script>
@@ -189,14 +169,14 @@ body.sheet-open #sheet { transform: none; }
   var ALIAS = { 'pdf-merge': 'files/pdf', 'upscale-site': 'files/upscale', 'png': 'files/png' };
   var byId = {};
   TOOLS.forEach(function (t) { byId[t.id] = t; });
-  var HOME = { id: '', name: 'ホーム', short: 'ホーム', emoji: '🏠' };
 
   // 下部バーに出すツール（端末ごとに記憶）
   var FAV_KEY = 'tools-hub:favorites';
-  var favorites = ['kiroku-calendar', 'okozukai', 'meibo'];
+  var LAST_KEY = 'tools-hub:last';
+  var favorites = ['kiroku-calendar', 'okozukai', 'meibo', 'files'];
   try {
     var saved = JSON.parse(localStorage.getItem(FAV_KEY));
-    if (Array.isArray(saved)) favorites = saved.filter(function (id) { return byId[id]; }).slice(0, 3);
+    if (Array.isArray(saved)) favorites = saved.filter(function (id) { return byId[id]; }).slice(0, 4);
   } catch (e) {}
   function saveFavorites() { try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); } catch (e) {} }
 
@@ -215,29 +195,16 @@ body.sheet-open #sheet { transform: none; }
   }
 
   var stage = document.getElementById('stage');
-  var home = document.getElementById('home');
   var frames = {}; // 一度開いたツールは iframe を残し、切り替えても状態を保つ
 
   function render() {
     // サイドバー
-    var s = '<div class="title">ツール</div><button data-go="">' + iconHtml(HOME) + '<span>ホーム</span></button>';
+    var s = '<div class="title">ツール</div>';
     groups().forEach(function (g) {
       s += '<h2>' + g.name + '</h2>';
       g.items.forEach(function (t) { s += '<button data-go="' + t.id + '">' + iconHtml(t) + '<span>' + t.name + '</span></button>'; });
     });
     document.getElementById('sidebar').innerHTML = s;
-
-    // 一覧ページ
-    var h = '';
-    groups().forEach(function (g) {
-      h += '<h2>' + g.name + '</h2><ul>';
-      g.items.forEach(function (t) {
-        h += '<li><a href="#/' + t.id + '">' + iconHtml(t) + '<span class="text"><span class="name">' + t.name +
-             '</span><span class="desc">' + t.desc + '</span></span><span class="chev">›</span></a></li>';
-      });
-      h += '</ul>';
-    });
-    document.getElementById('home-list').innerHTML = h;
 
     // 「すべて」シート
     var sh = '';
@@ -253,7 +220,7 @@ body.sheet-open #sheet { transform: none; }
   }
 
   function renderTabbar() {
-    var b = '<button data-go="">' + iconHtml(HOME) + '<span>ホーム</span></button>';
+    var b = '';
     favorites.forEach(function (id) { var t = byId[id]; b += '<button data-go="' + id + '">' + iconHtml(t) + '<span>' + t.short + '</span></button>'; });
     b += '<button id="more-btn" data-more="1"><span class="icon">☰</span><span>すべて</span></button>';
     document.getElementById('tabbar').innerHTML = b;
@@ -283,8 +250,14 @@ body.sheet-open #sheet { transform: none; }
   function show() {
     if (ALIAS[current()]) { location.replace('#/' + ALIAS[current()]); return; }
     var id = current();
-    if (id && !byId[id]) id = '';
-    home.hidden = !!id;
+    if (!byId[id]) {
+      // ホーム画面は置かず、前回開いていたツールを開く
+      var last = '';
+      try { last = localStorage.getItem(LAST_KEY) || ''; } catch (e) {}
+      location.replace('#/' + (byId[last] ? last : favorites[0] || TOOLS[0].id));
+      return;
+    }
+    try { localStorage.setItem(LAST_KEY, id); } catch (e) {}
     Object.keys(frames).forEach(function (k) { frames[k].hidden = k !== id; });
     if (id && !frames[id]) {
       var f = document.createElement('iframe');
@@ -310,7 +283,7 @@ body.sheet-open #sheet { transform: none; }
     });
     var more = document.getElementById('more-btn');
     if (more) {
-      var inBar = id === '' || favorites.indexOf(id) !== -1;
+      var inBar = favorites.indexOf(id) !== -1;
       if (inBar) more.removeAttribute('aria-current'); else more.setAttribute('aria-current', 'page');
     }
   }
@@ -339,7 +312,7 @@ body.sheet-open #sheet { transform: none; }
       var id = el.dataset.fav;
       var i = favorites.indexOf(id);
       if (i !== -1) favorites.splice(i, 1);
-      else { favorites.unshift(id); favorites = favorites.slice(0, 3); }
+      else { favorites.unshift(id); favorites = favorites.slice(0, 4); }
       saveFavorites();
       renderTabbar();
       if (navigator.vibrate) navigator.vibrate(15);
