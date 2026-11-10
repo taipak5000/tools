@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>ツール一覧</title>
+<style>
+:root {
+  --bg: #F2F2F7;
+  --card: #FFFFFF;
+  --label: #000000;
+  --sub: #6C6C70;
+  --sep: rgba(60, 60, 67, 0.12);
+  --accent: #007AFF;
+  --font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1C1C1E;
+    --label: #FFFFFF;
+    --sub: #98989F;
+    --sep: rgba(84, 84, 88, 0.6);
+    --accent: #0A84FF;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--label);
+  font-family: var(--font);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom));
+}
+h1 { font-size: 30px; font-weight: 700; margin: 8px 4px 20px; }
+h2 { font-size: 13px; font-weight: 400; color: var(--sub); margin: 24px 16px 6px; }
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+}
+li + li a { border-top: 0.5px solid var(--sep); }
+a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: inherit;
+  text-decoration: none;
+}
+a:active { background: var(--sep); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.icon img { width: 100%; height: 100%; object-fit: cover; }
+.text { flex: 1; min-width: 0; }
+.name { display: block; font-size: 17px; }
+.desc { display: block; font-size: 13px; color: var(--sub); }
+.chev { color: var(--sub); font-size: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ツール一覧</h1>
+
+  <h2>記録・管理</h2>
+  <ul>
+    <li><a href="./kiroku-calendar/">
+      <span class="icon"><img src="./kiroku-calendar/icons/icon-192.png" alt="" onerror="this.replaceWith('📅')"></span>
+      <span class="text"><span class="name">きろくカレンダー</span><span class="desc">服薬・メモ・シフトと給与</span></span>
+      <span class="chev">›</span></a></li>
+    <li><a href="./okozukai/">
+      <span class="icon"><img src="./okozukai/icons/icon-192.png" alt="" onerror="this.replaceWith('👛')"></span>
+      <span class="text"><span class="name">お小遣い帳</span><span class="desc">財布ごとの入金・出金・振替</span></span>
+      <span class="chev">›</span></a></li>
+    <li><a href="./meibo/">
+      <span class="icon"><img src="./meibo/icons/icon-192.png" alt="" onerror="this.replaceWith('👥')"></span>
+      <span class="text"><span class="name">名簿</span><span class="desc">あだ名・タグ・色で人物を整理</span></span>
+      <span class="chev">›</span></a></li>
+    <li><a href="./sitememo/">
+      <span class="icon">🔖</span>
+      <span class="text"><span class="name">サイトメモ</span><span class="desc">サイトとメモをタグで管理</span></span>
+      <span class="chev">›</span></a></li>
+    <li><a href="./teiki-oshirase/">
+      <span class="icon">⏰</span>
+      <span class="text"><span class="name">配布タイマー</span><span class="desc">配布の時刻をチャイムと通知で知らせる</span></span>
+      <span class="chev">›</span></a></li>
+  </ul>
+
+  <h2>計算</h2>
+  <ul>
+    <li><a href="./otoku-checker/">
+      <span class="icon"><img src="./otoku-checker/icons/icon-192.png" alt="" onerror="this.replaceWith('🛒')"></span>
+      <span class="text"><span class="name">おとくチェック</span><span class="desc">単価を比べてどちらがお得か判定</span></span>
+      <span class="chev">›</span></a></li>
+  </ul>
+
+  <h2>ファイル・画像</h2>
+  <ul>
+    <li><a href="./pdf-merge/">
+      <span class="icon">📄</span>
+      <span class="text"><span class="name">PDF結合</span><span class="desc">複数のPDFを印刷用に1つにまとめる</span></span>
+      <span class="chev">›</span></a></li>
+    <li><a href="./upscale-site/">
+      <span class="icon"><img src="./upscale-site/icon.svg" alt="" onerror="this.replaceWith('🖼️')"></span>
+      <span class="text"><span class="name">画像サイズ拡大</span><span class="desc">倍率・ピクセル・印刷サイズで拡大</span></span>
+      <span class="chev">›</span></a></li>
+    <li><a href="./png/">
+      <span class="icon">🗜️</span>
+      <span class="text"><span class="name">PNG ZIP Renamer</span><span class="desc">画像をPNGに変換し、連番名でZIP保存</span></span>
+      <span class="chev">›</span></a></li>
+  </ul>
+</main>
+</body>
+</html>
