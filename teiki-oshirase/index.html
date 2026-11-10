@@ -192,7 +192,6 @@
 <div class="app">
   <header>
     <h1>配布タイマー</h1>
-    <p class="subtitle">配布を何種類でも登録して、同時に動かせます。</p>
   </header>
 
   <div id="timers"></div>
@@ -529,7 +528,7 @@
       r.time.textContent = fmtDur(waitMs(t));
       r.phase.textContent = '停止中';
       r.bar.style.strokeDashoffset = 0;
-      r.meta.textContent = '開始を押すとカウントが始まります';
+      r.meta.textContent = '';
     } else if (t.phase === 'wait') {
       const rem = t.phaseEnd - now;
       r.time.textContent = fmtDur(rem);
