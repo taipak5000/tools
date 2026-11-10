@@ -51,3 +51,6 @@ html:root[data-theme="dark"] {
 html.in-files .site-header,
 html.in-files header.top,
 html.in-files header.topbar { display: none; }
+
+/* 外枠のパネルは装飾なしにし、中身だけを並べる（枠の入れ子を減らす） */
+html:root .panel { background: transparent; border: none; box-shadow: none; padding-left: 0; padding-right: 0; }

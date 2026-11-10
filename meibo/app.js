@@ -242,7 +242,7 @@ function renderList() {
     listEl.innerHTML = '';
     empty.hidden = false;
     empty.innerHTML = total === 0
-      ? `<strong>まだ誰も登録されていません</strong>右上の＋から最初の人物を追加しましょう。<br><button class="link-btn" type="button" id="empty-add">人物を追加</button>`
+      ? `<strong>まだ誰も登録されていません</strong><button class="link-btn" type="button" id="empty-add">人物を追加</button>`
       : `<strong>見つかりません</strong>キーワードや絞り込みを変えてみてください。<br><button class="link-btn" type="button" id="empty-clear">絞り込みを解除</button>`;
     $('#empty-add')?.addEventListener('click', () => openEdit(null));
     $('#empty-clear')?.addEventListener('click', clearFilters);

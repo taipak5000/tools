@@ -29,6 +29,8 @@
     </button>
   </header>
 
+  <script>if (window.parent !== window) document.documentElement.classList.add("in-hub");</script>
+  <style>.in-hub .install-hint { display: none !important; }</style>
   <p class="install-hint" id="installHint">
     <span>ホーム画面に追加すると次回からアプリのように開けます。</span>
     <button type="button" id="installBtn" hidden>追加する</button>
