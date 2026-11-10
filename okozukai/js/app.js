@@ -353,8 +353,7 @@
         <div class="hero-sub"><span>${now.getMonth() + 1}月</span><span class="plus">+${yen(st.inc)}</span><span class="minus">−${yen(st.exp)}</span></div>
       </div>
       ${store.wallets.length ? `<div class="group">${rows}<button class="row tint" data-act="add-wallet">${I.plus.replace('<svg', '<svg style="width:20px;height:20px"')}<span>財布を追加</span></button></div>`
-        : `<div class="group"><div class="empty"><strong>まだ財布がありません</strong>「財布の中身」「貯金箱」など、お金の置き場所ごとに財布を作ります。</div><button class="row tint" data-act="add-wallet">${I.plus.replace('<svg', '<svg style="width:20px;height:20px"')}<span>財布を追加</span></button></div>`}
-      <div class="group-foot">「合計外」の財布は合計残高に含まれません。財布ごとの設定で切り替えられます。</div>
+        : `<div class="group"><div class="empty"><strong>まだ財布がありません</strong></div><button class="row tint" data-act="add-wallet">${I.plus.replace('<svg', '<svg style="width:20px;height:20px"')}<span>財布を追加</span></button></div>`}
     `;
     $('#screen').onclick = (e) => { if (e.target.closest('[data-act="add-wallet"]')) walletForm(); };
     $('#nav').onclick = (e) => { if (e.target.closest('[data-act="search"]')) { resetSearch(); go('#/search'); } };
@@ -395,7 +394,7 @@
         <div class="hero-amount"><span class="yen">¥</span>${yen(bal)}</div>
         <div class="hero-sub"><span>${now.getMonth() + 1}月</span><span class="plus">+${yen(st.inc)}</span><span class="minus">−${yen(st.exp)}</span></div>
       </div>
-      ${html || `<div class="group"><div class="empty"><strong>記録はまだありません</strong>下の「入金」「出金」から記録できます。</div></div>`}
+      ${html || `<div class="group"><div class="empty"><strong>記録はまだありません</strong></div></div>`}
     `;
     const handler = (e) => {
       const b = e.target.closest('[data-act]');
@@ -624,7 +623,7 @@
         <div class="field"><label for="t-at">日時</label><input id="t-at" type="datetime-local" value="${toLocalInput(new Date())}"></div>
       </div>
       <button class="btn" id="t-go">振替する</button>
-      <div class="group-foot" style="margin-top:12px">両方の財布に「振替」として記録されます。どちらかの記録を編集・削除すると、もう片方も一緒に変わります。</div>
+      <div class="group-foot" style="margin-top:12px">両方の財布に記録されます。片方を編集・削除すると、もう片方も変わります。</div>
     `;
     const s = $('#screen');
     const refresh = () => {
