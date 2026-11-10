@@ -19,6 +19,7 @@
 })();
 </script>
 <title>ツール</title>
+<script src="shared/backup.js"></script>
 <style>
 :root {
   --bg: #F2F2F7;
@@ -129,12 +130,17 @@ body.sheet-open #sheet { transform: none; }
 .icon-open { display: block; margin: 16px 8px 0; color: var(--accent); font-size: 15px; }
 
 /* ---- ホーム画面アイコンの選択 ---- */
-#icon-dialog { border: none; border-radius: 14px; padding: 0; width: min(420px, calc(100% - 32px)); background: var(--bg); color: var(--label); }
-#icon-dialog::backdrop { background: rgba(0,0,0,0.35); }
-#icon-dialog header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
-#icon-dialog h2 { font-size: 17px; margin: 0; }
-#icon-dialog .done { color: var(--accent); font-size: 17px; font-weight: 600; }
-#icon-dialog .note { font-size: 13px; color: var(--sub); margin: 0 16px 12px; }
+#icon-dialog, #backup-dialog { border: none; border-radius: 14px; padding: 0; width: min(420px, calc(100% - 32px)); background: var(--bg); color: var(--label); }
+#backup-dialog::backdrop, #icon-dialog::backdrop { background: rgba(0,0,0,0.35); }
+#backup-dialog header, #icon-dialog header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; }
+#backup-dialog h2, #icon-dialog h2 { font-size: 17px; margin: 0; }
+#backup-dialog .done, #icon-dialog .done { color: var(--accent); font-size: 17px; font-weight: 600; }
+#backup-dialog .note, #icon-dialog .note { font-size: 13px; color: var(--sub); margin: 0 16px 12px; }
+.backup-actions { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
+.backup-actions button { padding: 12px; border-radius: 10px; background: var(--card); font-size: 16px; color: var(--accent); }
+.backup-actions button:disabled { opacity: .5; }
+#backup-status { font-size: 13px; color: var(--sub); margin: 0 16px 16px; min-height: 1em; }
+#backup-status:empty { display: none; }
 .icon-choices { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 0 16px 18px; }
 .icon-choices button { aspect-ratio: 1; border-radius: 22%; overflow: hidden; outline-offset: 3px; }
 .icon-choices button img { width: 100%; height: 100%; display: block; }
@@ -169,6 +175,17 @@ body.sheet-open #sheet { transform: none; }
 
 <nav id="sidebar" aria-label="ツール"></nav>
 
+<dialog id="backup-dialog" aria-labelledby="backup-dialog-title">
+  <header><h2 id="backup-dialog-title">バックアップ</h2><button class="done" type="button" data-backup-close>閉じる</button></header>
+  <p class="note">全ツールの記録・設定・写真を1つのファイルにまとめます。読み込むと、ファイルの内容で各ツールのデータを置き換えます。</p>
+  <div class="backup-actions">
+    <button type="button" id="backup-export">ファイルに書き出す</button>
+    <button type="button" id="backup-import">ファイルから復元</button>
+    <input type="file" id="backup-file" accept=".json,application/json" hidden>
+  </div>
+  <p id="backup-status" role="status"></p>
+</dialog>
+
 <dialog id="icon-dialog" aria-labelledby="icon-dialog-title">
   <header><h2 id="icon-dialog-title">ホーム画面のアイコン</h2><button class="done" type="button" data-icon-close>完了</button></header>
   <p class="note">選んでから「ホーム画面に追加」すると、このアイコンになります。追加済みのアイコンは、一度削除して追加し直すと変わります。</p>
@@ -184,6 +201,7 @@ body.sheet-open #sheet { transform: none; }
   <div class="grip"></div>
   <div id="sheet-list"></div>
   <p class="hint">ここでツールを長押しすると、下のバーに出す4つを入れ替えられます。</p>
+  <button class="icon-open" type="button" data-backup-open>バックアップ</button>
   <button class="icon-open" type="button" data-icon-open>ホーム画面のアイコンを変える</button>
 </div>
 
@@ -238,7 +256,8 @@ body.sheet-open #sheet { transform: none; }
       s += '<h2>' + g.name + '</h2>';
       g.items.forEach(function (t) { s += '<button data-go="' + t.id + '">' + iconHtml(t) + '<span>' + t.name + '</span></button>'; });
     });
-    s += '<button class="icon-open" type="button" data-icon-open>ホーム画面のアイコン</button>';
+    s += '<button class="icon-open" type="button" data-backup-open>バックアップ</button>';
+    s += '<button class="icon-open" type="button" data-icon-open style="margin-top:0">ホーム画面のアイコン</button>';
     document.getElementById('sidebar').innerHTML = s;
 
     // 「すべて」シート
@@ -423,6 +442,61 @@ body.sheet-open #sheet { transform: none; }
   });
   dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
   applyIcon(window.__hubIcon);
+
+  // ---- まとめてバックアップ ----
+  var bdlg = document.getElementById('backup-dialog');
+  var bstatus = document.getElementById('backup-status');
+  var bExport = document.getElementById('backup-export');
+  var bImport = document.getElementById('backup-import');
+  var bFile = document.getElementById('backup-file');
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('[data-backup-open]')) { closeSheet(); bstatus.textContent = ''; bdlg.showModal(); }
+    if (e.target.closest('[data-backup-close]')) bdlg.close();
+  });
+  bdlg.addEventListener('click', function (e) { if (e.target === bdlg) bdlg.close(); });
+  function busy(on) { bExport.disabled = on; bImport.disabled = on; }
+
+  bExport.addEventListener('click', async function () {
+    busy(true);
+    bstatus.textContent = '書き出しています…';
+    try {
+      var data = await window.ToolsBackup.exportAll();
+      var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      var d = new Date();
+      var name = 'tools-backup-' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.json';
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 10000);
+      bstatus.textContent = name + '（' + (blob.size / 1024 / 1024).toFixed(1) + 'MB）を保存しました。';
+    } catch (err) {
+      bstatus.textContent = '書き出せませんでした：' + (err && err.message || err);
+    }
+    busy(false);
+  });
+
+  bImport.addEventListener('click', function () { bFile.value = ''; bFile.click(); });
+  bFile.addEventListener('change', async function () {
+    var f = bFile.files && bFile.files[0];
+    if (!f) return;
+    if (!confirm('「' + f.name + '」の内容で、全ツールのデータを置き換えます。今のデータは消えます。よろしいですか？')) return;
+    busy(true);
+    bstatus.textContent = '復元しています…';
+    try {
+      var data = JSON.parse(await f.text());
+      // 各ツールがデータベースを開いたままだと消せないので、先に閉じる
+      Object.keys(frames).forEach(function (k) { frames[k].remove(); delete frames[k]; });
+      await window.ToolsBackup.importAll(data);
+      bstatus.textContent = '復元しました。読み込み直します…';
+      setTimeout(function () { location.reload(); }, 800);
+    } catch (err) {
+      bstatus.textContent = '復元できませんでした：' + (err && err.message || err);
+      busy(false);
+      show();
+    }
+  });
 
   window.addEventListener('hashchange', show);
   render();
